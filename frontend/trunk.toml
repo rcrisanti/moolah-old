@@ -1,0 +1,4 @@
+[serve]
+open = true
+port = 3000
+proxy_backend = "http://localhost:8000/api"

@@ -1,0 +1,16 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+yew = "0.19"
+yew-router = "0.16"
+web-sys = "0.3"
+weblog = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
+shared = { path = "../shared" }
