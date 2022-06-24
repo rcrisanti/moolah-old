@@ -8,8 +8,8 @@ use yew_router::prelude::*;
 
 use crate::app::Route;
 use crate::components::{Footer, Header};
-use crate::requests::fully_qualified_path;
 use crate::services::identity_remember;
+use crate::services::requests::fully_qualified_path;
 use shared::{models::UserForm, routes};
 
 pub enum RegisterMsg {
@@ -139,12 +139,12 @@ impl Component for Register {
             }
             RegisterMsg::Submitted => {
                 console_debug!("submitting form");
-                let user_form = UserForm {
-                    username: self.username.clone(),
-                    email: self.email.clone(),
-                    password: self.password.clone(),
-                    confirm_password: self.password_confirm.clone(),
-                };
+                let user_form = UserForm::new(
+                    self.username.clone(),
+                    self.email.clone(),
+                    self.password.clone(),
+                    self.password_confirm.clone(),
+                );
 
                 let path = fully_qualified_path(routes::REGISTER.into())
                     .expect("could not build fully qualified path");
@@ -177,7 +177,7 @@ impl Component for Register {
                 });
             }
             RegisterMsg::SuccessfulLogin(redirect_page) => {
-                identity_remember(self.username.clone())
+                identity_remember(self.username.clone().to_lowercase())
                     .expect("could not store identity in session storage");
                 self.redirect_to = Some(redirect_page)
             }

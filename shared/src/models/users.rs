@@ -41,8 +41,8 @@ impl TryFrom<UserForm> for NewUser {
     fn try_from(form: UserForm) -> Result<Self, Self::Error> {
         form.validate()?;
         Ok(NewUser {
-            username: form.username,
-            email: form.email,
+            username: form.username.to_lowercase(),
+            email: form.email.to_lowercase(),
             password: form.password,
         })
     }
@@ -57,9 +57,9 @@ pub struct UserForm {
             message = "username should be only made up of letters, numbers, and digits"
         )
     )]
-    pub username: String,
+    username: String,
     #[validate(email(message = "please enter a valid email"))]
-    pub email: String,
+    email: String,
     #[validate(
         length(min = 8, max = 24, message = "password should be 8-24 characters"),
         regex(
@@ -67,10 +67,26 @@ pub struct UserForm {
             message = "password should be made up of letters, numbers, digits, and the following special characters '@#$%^&-+=()!? '"
         )
     )]
-    pub password: String,
+    password: String,
     #[validate(must_match(
         other = "password",
         message = "confirm password should match password"
     ))]
-    pub confirm_password: String,
+    confirm_password: String,
+}
+
+impl UserForm {
+    pub fn new(
+        username: String,
+        email: String,
+        password: String,
+        confirm_password: String,
+    ) -> Self {
+        UserForm {
+            username: username.to_lowercase(),
+            email: email.to_lowercase(),
+            password,
+            confirm_password,
+        }
+    }
 }

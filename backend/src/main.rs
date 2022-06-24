@@ -14,7 +14,7 @@ mod errors;
 mod services;
 
 use errors::MoolahBackendError;
-use services::post_register;
+use services::{post_logout, post_register};
 
 type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
             ))
             .app_data(web::Data::new(pool.clone()))
             .route(routes::REGISTER, web::post().to(post_register))
+            .route(routes::LOGOUT, web::post().to(post_logout))
     })
     .bind(("127.0.0.1", 8000))?
     .run()

@@ -2,7 +2,6 @@ mod app;
 mod components;
 mod errors;
 mod pages;
-mod requests;
 mod services;
 
 use app::App;
