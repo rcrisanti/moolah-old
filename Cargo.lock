@@ -809,6 +809,7 @@ dependencies = [
 name = "frontend"
 version = "0.1.0"
 dependencies = [
+ "gloo-storage",
  "reqwest",
  "serde",
  "shared",

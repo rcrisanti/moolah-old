@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate diesel;
 
+use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::cookie::SameSite;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
 use diesel::pg::PgConnection;
@@ -30,11 +32,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            // .wrap(IdentityService::new(
-            //     CookieIdentityPolicy::new(&[0; 32])
-            //         .name("auth-cookie")
-            //         .secure(false),
-            // ))
+            .wrap(IdentityService::new(
+                CookieIdentityPolicy::new(&[0; 32])
+                    .name("auth-cookie")
+                    .same_site(SameSite::None),
+            ))
             .app_data(web::Data::new(pool.clone()))
             .route(routes::REGISTER, web::post().to(post_register))
     })

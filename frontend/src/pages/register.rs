@@ -9,6 +9,7 @@ use yew_router::prelude::*;
 use crate::app::Route;
 use crate::components::{Footer, Header};
 use crate::requests::fully_qualified_path;
+use crate::services::identity_remember;
 use shared::{models::UserForm, routes};
 
 pub enum RegisterMsg {
@@ -91,7 +92,7 @@ impl Component for Register {
 
         html! {
             <>
-                <Header heading="register" title="register" logged_in=false />
+                <Header heading="register" title="register" />
 
                 <form {onsubmit}>
                     <div>
@@ -175,7 +176,11 @@ impl Component for Register {
                         .emit(0);
                 });
             }
-            RegisterMsg::SuccessfulLogin(redirect_page) => self.redirect_to = Some(redirect_page),
+            RegisterMsg::SuccessfulLogin(redirect_page) => {
+                identity_remember(self.username.clone())
+                    .expect("could not store identity in session storage");
+                self.redirect_to = Some(redirect_page)
+            }
             RegisterMsg::Error(err) => self.error_msg = Some(err),
         }
         true

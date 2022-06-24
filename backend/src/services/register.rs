@@ -1,4 +1,5 @@
 use crate::{MoolahBackendError, Pool};
+use actix_identity::Identity;
 use actix_web::{web, HttpResponse};
 use diesel::prelude::*;
 use shared::{
@@ -8,18 +9,10 @@ use shared::{
 
 pub async fn post_register(
     web::Json(user_form): web::Json<UserForm>,
+    id: Identity,
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     log::debug!("posting registration user form");
-
-    // if let Err(e) = user_form.validate() {
-    //     // return Ok(HttpResponse::Ok().body(format!("Registration error: {}", e)));
-    //     // return Ok(HttpResponse::SeeOther()
-    //     //     .set_header("Location", "/register")
-    //     //     .finish());
-
-    //     return register_with_warnings(tera, id, e).await;
-    // }
 
     use schema::users;
 
@@ -35,18 +28,16 @@ pub async fn post_register(
 
             log::info!("process registration for {}", new_user.username);
 
+            if let Some(username) = id.identity() {
+                log::debug!("already logged in for user {} - forgetting", username);
+                id.forget();
+            }
+
+            id.remember(new_user.username.clone());
+            log::debug!("remebered user session");
+
             Ok(HttpResponse::Ok().body("processed registration"))
         }
-        Err(err) => Ok(HttpResponse::NotAcceptable().body(err.to_string())),
+        Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
     }
-
-    // let connection = pool.get()?;
-
-    // diesel::insert_into(users::table)
-    //     .values(&new_user)
-    //     .execute(&connection)?;
-
-    // log::info!("process registration for {}", new_user.username);
-
-    // Ok(HttpResponse::Ok().body("processed registration"))
 }

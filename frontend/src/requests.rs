@@ -28,36 +28,36 @@ mod tests {
     #[test]
     fn test_both() {
         let joined = join_path("localhost:8000/".to_string(), "/login".to_string());
-        assert_eq!(joined, Ok("localhost:8000/login".to_string()));
+        assert_eq!(joined.unwrap(), "localhost:8000/login".to_string());
     }
 
     #[test]
     fn test_left() {
         let joined = join_path("localhost:8000/".to_string(), "login".to_string());
-        assert_eq!(joined, Ok("localhost:8000/login".to_string()));
+        assert_eq!(joined.unwrap(), "localhost:8000/login".to_string());
     }
 
     #[test]
     fn test_right() {
         let joined = join_path("localhost:8000".to_string(), "/login".to_string());
-        assert_eq!(joined, Ok("localhost:8000/login".to_string()));
+        assert_eq!(joined.unwrap(), "localhost:8000/login".to_string());
     }
 
     #[test]
     fn test_neither() {
         let joined = join_path("localhost:8000".to_string(), "login".to_string());
-        assert_eq!(joined, Ok("localhost:8000/login".to_string()));
+        assert_eq!(joined.unwrap(), "localhost:8000/login".to_string());
     }
 
     #[test]
     fn test_fails() {
         let joined = join_path("".to_string(), "login".to_string());
-        assert_eq!(joined, Err(MoolahFrontendError::JoinPathError));
+        assert!(joined.is_err());
 
         let joined = join_path("localhost:8000".to_string(), "".to_string());
-        assert_eq!(joined, Err(MoolahFrontendError::JoinPathError));
+        assert!(joined.is_err());
 
         let joined = join_path("".to_string(), "".to_string());
-        assert_eq!(joined, Err(MoolahFrontendError::JoinPathError));
+        assert!(joined.is_err());
     }
 }

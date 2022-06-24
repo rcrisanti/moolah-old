@@ -15,7 +15,7 @@ impl Component for Home {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <>
-                <Header heading="moolah" logged_in=false />
+                <Header heading="moolah" />
 
                 <p>{ "this is the home page" }</p>
 

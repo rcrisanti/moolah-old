@@ -2,13 +2,13 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::app::Route;
+use crate::services::identity_recall;
 
 #[derive(Properties, PartialEq)]
 pub struct HeaderProps {
     #[prop_or(None)]
     pub title: Option<String>,
     pub heading: String,
-    pub logged_in: bool,
 }
 
 pub struct Header {}
@@ -27,6 +27,8 @@ impl Component for Header {
             None => "moolah".to_string(),
         };
 
+        let is_logged_in = identity_recall().is_some();
+
         html! {
             <>
                 <head>
@@ -37,7 +39,7 @@ impl Component for Header {
 
                     <div style={"float:right;"}>
                         {
-                            if ctx.props().logged_in {
+                            if is_logged_in {
                                 html! {
                                     <>
                                         <Link<Route> to={Route::Account}>{ "account" }</Link<Route>>
