@@ -9,7 +9,7 @@ pub enum MoolahBackendError {
     #[error("R2D2 error")]
     R2D2Error(#[from] r2d2::Error),
 
-    #[error("Diesel error")]
+    #[error("Diesel error: {0}")]
     DieselError(#[from] diesel::result::Error),
     // #[error("Argonautica error")]
     // ArgonauticaError(#[from] argonautica::Error),

@@ -3,7 +3,7 @@ use yew_router::prelude::*;
 
 use crate::pages::{Home, Register};
 
-#[derive(Routable, PartialEq, Clone)]
+#[derive(Routable, PartialEq, Clone, Copy, Debug)]
 pub enum Route {
     #[at("/")]
     Home,

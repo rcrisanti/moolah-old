@@ -36,10 +36,6 @@ async fn main() -> std::io::Result<()> {
             //         .secure(false),
             // ))
             .app_data(web::Data::new(pool.clone()))
-            .app_data(web::FormConfig::default().error_handler(|err, req| {
-                log::error!("form error: {} ({:?})", &err, req);
-                actix_web::Error::from(err)
-            }))
             .route(routes::REGISTER, web::post().to(post_register))
     })
     .bind(("127.0.0.1", 8000))?

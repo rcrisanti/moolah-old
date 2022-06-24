@@ -7,7 +7,7 @@ use shared::{
 };
 
 pub async fn post_register(
-    user_form: web::Json<UserForm>,
+    web::Json(user_form): web::Json<UserForm>,
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     log::debug!("posting registration user form");
@@ -23,14 +23,30 @@ pub async fn post_register(
 
     use schema::users;
 
-    let new_user: NewUser = user_form.into_inner().into();
-    let connection = pool.get()?;
+    let new_user: Result<NewUser, _> = user_form.try_into();
 
-    diesel::insert_into(users::table)
-        .values(&new_user)
-        .execute(&connection)?;
+    match new_user {
+        Ok(new_user) => {
+            let connection = pool.get()?;
 
-    log::info!("process registration for {}", new_user.username);
+            diesel::insert_into(users::table)
+                .values(&new_user)
+                .execute(&connection)?;
 
-    Ok(HttpResponse::Ok().body("processed registration"))
+            log::info!("process registration for {}", new_user.username);
+
+            Ok(HttpResponse::Ok().body("processed registration"))
+        }
+        Err(err) => Ok(HttpResponse::NotAcceptable().body(err.to_string())),
+    }
+
+    // let connection = pool.get()?;
+
+    // diesel::insert_into(users::table)
+    //     .values(&new_user)
+    //     .execute(&connection)?;
+
+    // log::info!("process registration for {}", new_user.username);
+
+    // Ok(HttpResponse::Ok().body("processed registration"))
 }
