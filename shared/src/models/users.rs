@@ -1,8 +1,13 @@
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use validator::{Validate, ValidationErrors};
+use validator::Validate;
 
 use crate::schema::users;
+use crate::MoolahSharedError;
 
 lazy_static! {
     static ref PASSWORD_REGEX: Regex = Regex::new(r"[a-zA-Z\d@#$%^&-+=()!? ]{8,24}$").unwrap();
@@ -14,7 +19,8 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
-    pub password: String,
+    password: String,
+    password_salt: String,
 }
 
 #[derive(Debug, Deserialize, Insertable)]
@@ -23,27 +29,25 @@ pub struct NewUser {
     pub username: String,
     pub email: String,
     password: String,
+    password_salt: String,
 }
 
-// impl From<UserForm> for NewUser {
-//     fn from(form: UserForm) -> Self {
-//         NewUser {
-//             username: form.username,
-//             email: form.email,
-//             password: form.password,
-//         }
-//     }
-// }
-
 impl TryFrom<UserForm> for NewUser {
-    type Error = ValidationErrors;
+    type Error = MoolahSharedError;
 
     fn try_from(form: UserForm) -> Result<Self, Self::Error> {
         form.validate()?;
+
+        let salt = SaltString::generate(&mut OsRng);
+        let pass_hash = Argon2::default()
+            .hash_password(form.password.as_bytes(), &salt)?
+            .to_string();
+
         Ok(NewUser {
             username: form.username.to_lowercase(),
             email: form.email.to_lowercase(),
-            password: form.password,
+            password: pass_hash,
+            password_salt: salt.to_string(),
         })
     }
 }
