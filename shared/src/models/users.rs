@@ -14,13 +14,29 @@ lazy_static! {
     static ref USERNAME_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9]{4,18}$").unwrap();
 }
 
-#[derive(Queryable, Debug, Identifiable, Serialize)]
+#[derive(Queryable, Debug, Identifiable, Serialize, Deserialize)]
 pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
     password: String,
-    password_salt: String,
+}
+
+impl User {
+    pub fn verify_user(
+        &self,
+        username: String,
+        password: String,
+    ) -> Result<bool, MoolahSharedError> {
+        if username.to_lowercase() != self.username.to_lowercase() {
+            return Ok(false);
+        }
+
+        let parsed_hash = PasswordHash::new(&self.password)?;
+        Ok(Argon2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok())
+    }
 }
 
 #[derive(Debug, Deserialize, Insertable)]
@@ -29,13 +45,12 @@ pub struct NewUser {
     pub username: String,
     pub email: String,
     password: String,
-    password_salt: String,
 }
 
-impl TryFrom<UserForm> for NewUser {
+impl TryFrom<UserRegisterForm> for NewUser {
     type Error = MoolahSharedError;
 
-    fn try_from(form: UserForm) -> Result<Self, Self::Error> {
+    fn try_from(form: UserRegisterForm) -> Result<Self, Self::Error> {
         form.validate()?;
 
         let salt = SaltString::generate(&mut OsRng);
@@ -47,13 +62,12 @@ impl TryFrom<UserForm> for NewUser {
             username: form.username.to_lowercase(),
             email: form.email.to_lowercase(),
             password: pass_hash,
-            password_salt: salt.to_string(),
         })
     }
 }
 
 #[derive(Debug, Deserialize, Validate, Serialize)]
-pub struct UserForm {
+pub struct UserRegisterForm {
     #[validate(
         length(min = 4, max = 18, message = "username should be 4-18 characters"),
         regex(
@@ -79,18 +93,31 @@ pub struct UserForm {
     confirm_password: String,
 }
 
-impl UserForm {
+impl UserRegisterForm {
     pub fn new(
         username: String,
         email: String,
         password: String,
         confirm_password: String,
     ) -> Self {
-        UserForm {
+        UserRegisterForm {
             username: username.to_lowercase(),
             email: email.to_lowercase(),
             password,
             confirm_password,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserLoginRequestForm {
+    pub username: String,
+}
+
+impl UserLoginRequestForm {
+    pub fn new(username: String) -> Self {
+        UserLoginRequestForm {
+            username: username.to_lowercase(),
         }
     }
 }

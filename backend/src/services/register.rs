@@ -3,12 +3,12 @@ use actix_identity::Identity;
 use actix_web::{web, HttpResponse};
 use diesel::prelude::*;
 use shared::{
-    models::{NewUser, UserForm},
+    models::{NewUser, UserRegisterForm},
     schema,
 };
 
 pub async fn post_register(
-    web::Json(user_form): web::Json<UserForm>,
+    web::Json(user_form): web::Json<UserRegisterForm>,
     id: Identity,
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {

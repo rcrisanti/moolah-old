@@ -10,7 +10,7 @@ use crate::app::Route;
 use crate::components::{Footer, Header};
 use crate::services::identity_remember;
 use crate::services::requests::fully_qualified_path;
-use shared::{models::UserForm, routes};
+use shared::{models::UserRegisterForm, routes};
 
 pub enum RegisterMsg {
     UsernameChanged(String),
@@ -139,7 +139,7 @@ impl Component for Register {
             }
             RegisterMsg::Submitted => {
                 console_debug!("submitting form");
-                let user_form = UserForm::new(
+                let user_form = UserRegisterForm::new(
                     self.username.clone(),
                     self.email.clone(),
                     self.password.clone(),

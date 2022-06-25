@@ -1,3 +1,3 @@
 pub mod users;
 
-pub use users::{NewUser, User, UserForm};
+pub use users::{NewUser, User, UserLoginRequestForm, UserRegisterForm};

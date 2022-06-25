@@ -2,6 +2,5 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR NOT NULL UNIQUE,
     email VARCHAR NOT NULL UNIQUE,
-    password VARCHAR NOT NULL,
-    password_salt VARCHAR NOT NULL
+    password VARCHAR NOT NULL
 )

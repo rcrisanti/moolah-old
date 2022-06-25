@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::pages::{Home, Logout, Register};
+use crate::pages::{Home, Login, Logout, Register};
 
 #[derive(Routable, PartialEq, Clone, Copy, Debug)]
 pub enum Route {
@@ -28,7 +28,7 @@ pub enum Route {
 fn switch(route: &Route) -> Html {
     match route {
         Route::Home => html! { <Home /> },
-        Route::Login => html! {"login"},
+        Route::Login => html! { <Login /> },
         Route::NotFound => html! {"404"},
         Route::Logout => html! { <Logout /> },
         Route::Account => html! {"account"},
