@@ -126,13 +126,14 @@ impl Component for Login {
                 console_debug!("submitting form");
                 let user_form = UserLoginRequestForm::new(self.username.clone());
 
-                let path = fully_qualified_path(routes::LOGIN.into())
+                let path = fully_qualified_path(routes::LOGIN_REQUEST_PASSWORD.into())
                     .expect("could not build fully qualified path");
 
                 let scope = Arc::new(ctx.link().clone());
                 let password = self.password.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let response = Client::new()
+                    let client = Client::new();
+                    let response = client
                         .post(path)
                         .json(&user_form)
                         .send()
@@ -150,9 +151,26 @@ impl Component for Login {
                                 .verify_user(user_form.username, password)
                                 .expect("could not verify user")
                             {
-                                scope
-                                    .callback(|_| LoginMsg::SuccessfulLogin(Route::Home))
-                                    .emit(0);
+                                let response = client
+                                    .post(fully_qualified_path(routes::LOGIN.into()).expect(
+                                        "could not build fully qualified path for second request",
+                                    ))
+                                    .json(&user)
+                                    .send()
+                                    .await
+                                    .expect("could not post user");
+
+                                if response.status() == StatusCode::OK {
+                                    scope
+                                        .callback(|_| LoginMsg::SuccessfulLogin(Route::Home))
+                                        .emit(0);
+                                } else {
+                                    scope
+                                        .callback(|_| {
+                                            LoginMsg::Error(LoginError::IncorrectCredentials)
+                                        })
+                                        .emit(0);
+                                }
                             } else {
                                 scope
                                     .callback(|_| LoginMsg::Error(LoginError::IncorrectCredentials))
@@ -163,7 +181,7 @@ impl Component for Login {
                             scope
                                 .callback(|_| {
                                     LoginMsg::Error(LoginError::Other(
-                                        "interval server error".to_string(),
+                                        "username does not exist".to_string(),
                                     ))
                                 })
                                 .emit(0);
