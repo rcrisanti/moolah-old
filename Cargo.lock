@@ -653,7 +653,9 @@ dependencies = [
 name = "frontend"
 version = "0.1.0"
 dependencies = [
+ "gloo-dialogs",
  "gloo-storage",
+ "regex",
  "reqwest",
  "serde",
  "shared",

@@ -7,7 +7,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::app::Route;
-use crate::components::{Footer, Header};
+use crate::components::Header;
 use crate::services::identity_remember;
 use crate::services::requests::fully_qualified_path;
 use shared::{models::UserRegisterForm, routes};
@@ -113,8 +113,6 @@ impl Component for Register {
                     </div>
                     <input type="submit" value="register"/>
                 </form>
-
-                <Footer />
             </>
         }
     }

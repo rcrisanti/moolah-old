@@ -121,3 +121,18 @@ impl UserLoginRequestForm {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserAccount {
+    pub username: String,
+    pub email: String,
+}
+
+impl From<User> for UserAccount {
+    fn from(user: User) -> Self {
+        UserAccount {
+            username: user.username,
+            email: user.email,
+        }
+    }
+}

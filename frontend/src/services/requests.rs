@@ -1,3 +1,5 @@
+use regex::Regex;
+
 use crate::MoolahFrontendError;
 
 fn join_path(base_url: String, relative_url: String) -> Result<String, MoolahFrontendError> {
@@ -19,6 +21,16 @@ pub fn fully_qualified_path(relative_url: String) -> Result<String, MoolahFronte
         Some(window) => join_path(window.origin(), relative_url),
         None => Err(MoolahFrontendError::WebSysError),
     }
+}
+
+pub fn replace_pattern(
+    base: &'static str,
+    re_pattern: &'static str,
+    replace: String,
+) -> Result<String, MoolahFrontendError> {
+    let re = Regex::new(re_pattern)?;
+
+    Ok(re.replace(base, replace).to_string())
 }
 
 #[cfg(test)]
@@ -59,5 +71,18 @@ mod tests {
 
         let joined = join_path("".to_string(), "".to_string());
         assert!(joined.is_err());
+    }
+
+    #[test]
+    fn test_replace_pattern() {
+        assert_eq!(
+            replace_pattern(
+                "api/account/{username}",
+                r"\{username\}",
+                "my_username".to_string()
+            )
+            .unwrap(),
+            "api/account/my_username".to_string()
+        )
     }
 }

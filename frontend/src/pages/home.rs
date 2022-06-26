@@ -1,6 +1,6 @@
 use yew::prelude::*;
 
-use crate::components::{Footer, Header};
+use crate::components::Header;
 
 pub struct Home {}
 
@@ -18,8 +18,6 @@ impl Component for Home {
                 <Header heading="moolah" />
 
                 <p>{ "this is the home page" }</p>
-
-                <Footer />
             </>
         }
     }

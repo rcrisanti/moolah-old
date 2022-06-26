@@ -1,7 +1,8 @@
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::pages::{Home, Login, Logout, Register};
+use crate::components::Footer;
+use crate::pages::{Account, Home, Login, Logout, Register};
 
 #[derive(Routable, PartialEq, Clone, Copy, Debug)]
 pub enum Route {
@@ -31,7 +32,7 @@ fn switch(route: &Route) -> Html {
         Route::Login => html! { <Login /> },
         Route::NotFound => html! {"404"},
         Route::Logout => html! { <Logout /> },
-        Route::Account => html! {"account"},
+        Route::Account => html! { <Account /> },
         Route::Register => html! { <Register /> },
     }
 }
@@ -48,9 +49,13 @@ impl Component for App {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <BrowserRouter>
-                <Switch<Route> render={Switch::render(switch)} />
-            </BrowserRouter>
+            <>
+                <BrowserRouter>
+                    <Switch<Route> render={Switch::render(switch)} />
+                </BrowserRouter>
+
+                <Footer />
+            </>
         }
     }
 }
