@@ -1,9 +1,10 @@
 use shared::models::predictions::PredictionWithDeltas;
+use stylist::{css, YieldStyle};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct PredictionPanelProps {
-    prediction: PredictionWithDeltas,
+    pub prediction: PredictionWithDeltas,
 }
 
 pub struct PredictionPanel {}
@@ -18,14 +19,14 @@ impl Component for PredictionPanel {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div>
+            <>
                 <h2>{ ctx.props().prediction.name.clone() }</h2>
 
-                <div>
+                <div class={ self.style() }>
                     <h3>{ "deltas" }</h3>
                     { self.view_delta_table(ctx) }
                 </div>
-            </div>
+            </>
         }
     }
 }
@@ -87,5 +88,17 @@ impl PredictionPanel {
                 }
             </table>
         }
+    }
+}
+
+impl YieldStyle for PredictionPanel {
+    fn style_from(&self) -> stylist::StyleSource<'static> {
+        css!(
+            "table, th, td {
+                border: 1px solid black;
+                border-collapse: collapse;
+                padding: 15px;
+            }"
+        )
     }
 }

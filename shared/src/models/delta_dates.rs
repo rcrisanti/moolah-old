@@ -11,8 +11,8 @@ use crate::schema::delta_dates;
 #[table_name = "delta_dates"]
 #[belongs_to(Delta)]
 pub struct DeltaDate {
-    delta_id: i32,
-    date: chrono::NaiveDate,
+    pub delta_id: i32,
+    pub date: chrono::NaiveDate,
 }
 
 impl Ord for DeltaDate {
