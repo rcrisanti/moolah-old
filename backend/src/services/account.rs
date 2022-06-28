@@ -6,6 +6,7 @@ use shared::{
     schema::users::dsl::{username, users},
 };
 
+use super::{is_authenticated_user, AuthenticationStatus};
 use crate::{errors::MoolahBackendError, Pool};
 
 pub async fn get_account(
@@ -14,17 +15,18 @@ pub async fn get_account(
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     let requested_username = requested_username.into_inner().to_lowercase();
-    if Some(requested_username.clone()) == id.identity() {
-        let connection = pool.get()?;
-        let user: User = users
-            .filter(username.eq(requested_username))
-            .first(&connection)?;
+    match is_authenticated_user(&id, &requested_username) {
+        AuthenticationStatus::Matching => {
+            let connection = pool.get()?;
+            let user: User = users
+                .filter(username.eq(requested_username))
+                .first(&connection)?;
 
-        let account: UserAccount = user.into();
+            let account: UserAccount = user.into();
 
-        Ok(HttpResponse::Ok().json(account))
-    } else {
-        Ok(HttpResponse::Unauthorized().body("requested username not authenticated for"))
+            Ok(HttpResponse::Ok().json(account))
+        }
+        _ => Ok(HttpResponse::Unauthorized().body("requested username not authenticated for")),
     }
 }
 
@@ -34,17 +36,19 @@ pub async fn delete_account(
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     let requested_username = requested_username.into_inner().to_lowercase();
-    if let Some(auth_username) = id.identity() {
-        if auth_username == requested_username {
+    match is_authenticated_user(&id, &requested_username) {
+        AuthenticationStatus::Matching => {
             let connection = pool.get()?;
-            diesel::delete(users.filter(username.eq(auth_username))).execute(&connection)?;
+            diesel::delete(users.filter(username.eq(requested_username))).execute(&connection)?;
 
             id.forget();
             Ok(HttpResponse::Ok().finish())
-        } else {
+        }
+        AuthenticationStatus::Mismatched => {
             Ok(HttpResponse::Unauthorized().body("not authorized to delete this account"))
         }
-    } else {
-        Ok(HttpResponse::Unauthorized().body("not logged in"))
+        AuthenticationStatus::Unauthorized => {
+            Ok(HttpResponse::Unauthorized().body("not logged in"))
+        }
     }
 }

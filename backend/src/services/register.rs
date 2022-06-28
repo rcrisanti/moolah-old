@@ -33,7 +33,7 @@ pub async fn post_register(
                 id.forget();
             }
 
-            id.remember(new_user.username.clone());
+            id.remember(new_user.username.clone().to_lowercase());
             log::debug!("remebered user session");
 
             Ok(HttpResponse::Ok().body("processed registration"))

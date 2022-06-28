@@ -2,6 +2,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
+use chrono::{Local, NaiveDateTime};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -20,6 +21,8 @@ pub struct User {
     pub username: String,
     pub email: String,
     pub password: String,
+    pub created: NaiveDateTime,
+    pub last_login: NaiveDateTime,
 }
 
 impl User {
@@ -45,6 +48,8 @@ pub struct NewUser {
     pub username: String,
     pub email: String,
     password: String,
+    created: NaiveDateTime,
+    last_login: NaiveDateTime,
 }
 
 impl TryFrom<UserRegisterForm> for NewUser {
@@ -58,10 +63,14 @@ impl TryFrom<UserRegisterForm> for NewUser {
             .hash_password(form.password.as_bytes(), &salt)?
             .to_string();
 
+        let now = Local::now().naive_utc();
+
         Ok(NewUser {
             username: form.username.to_lowercase(),
             email: form.email.to_lowercase(),
             password: pass_hash,
+            created: now,
+            last_login: now,
         })
     }
 }
@@ -126,6 +135,8 @@ impl UserLoginRequestForm {
 pub struct UserAccount {
     pub username: String,
     pub email: String,
+    pub created: NaiveDateTime,
+    pub last_login: NaiveDateTime,
 }
 
 impl From<User> for UserAccount {
@@ -133,6 +144,8 @@ impl From<User> for UserAccount {
         UserAccount {
             username: user.username,
             email: user.email,
+            created: user.created,
+            last_login: user.last_login,
         }
     }
 }

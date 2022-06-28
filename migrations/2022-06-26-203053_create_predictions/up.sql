@@ -1,0 +1,5 @@
+CREATE TABLE predictions (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR NOT NULL UNIQUE REFERENCES users(username),
+    name VARCHAR NOT NULL UNIQUE
+)

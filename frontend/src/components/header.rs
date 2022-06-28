@@ -38,6 +38,7 @@ impl Component for Header {
                     <h1>{ &ctx.props().heading }</h1>
 
                     <div style={"float:right;"}>
+                        <Link<Route> to={Route::Home}>{ "home" }</Link<Route>>
                         {
                             if is_logged_in {
                                 html! {

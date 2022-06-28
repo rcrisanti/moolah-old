@@ -1,0 +1,1 @@
+DROP TABLE delta_dates;

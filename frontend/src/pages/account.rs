@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local, Utc};
 use gloo_dialogs::confirm;
 use reqwest::Client;
 use reqwest::StatusCode;
@@ -6,14 +7,13 @@ use shared::routes;
 use std::sync::Arc;
 use thiserror::Error;
 use yew::prelude::*;
-use yew_router::prelude::*;
 
-use crate::app::Route;
-use crate::components::Header;
+use crate::components::{Header, Loading, Unauthorized};
 use crate::services::requests::{fully_qualified_path, replace_pattern};
 use crate::services::{identity_forget, identity_recall};
 
 const PATH_PATTERN: &str = r"\{username\}";
+const DATETIME_FORMAT: &str = "%a %h %d %Y %r %Z";
 
 #[derive(Error, Debug, Clone)]
 pub enum AccountError {
@@ -182,6 +182,15 @@ impl Account {
         let onclick_reset_password = ctx.link().callback(|_| AccountMsg::ResetPassword);
         let onclick_delete_account = ctx.link().callback(|_| AccountMsg::DeleteAccountInitiated);
 
+        let created = DateTime::<Utc>::from_utc(account.created, Utc)
+            .with_timezone(&Local)
+            .format(DATETIME_FORMAT)
+            .to_string();
+        let last_login = DateTime::<Utc>::from_utc(account.last_login, Utc)
+            .with_timezone(&Local)
+            .format(DATETIME_FORMAT)
+            .to_string();
+
         html! {
             <>
                 <Header title="account" heading={account.username.clone()}/>
@@ -198,6 +207,8 @@ impl Account {
 
                 <div>
                     <h2>{ "account" }</h2>
+                    <div>{ format!("created: {}", created) }</div>
+                    <div>{ format!("last_login: {}", last_login) }</div>
                     <div>
                         <button onclick={onclick_delete_account}>{ "delete account" }</button>
                         {
@@ -218,13 +229,7 @@ impl Account {
             <>
                 <Header title="account" heading="account"/>
 
-                <div>{ "not logged in" }</div>
-
-                <div>
-                    <Link<Route> to={Route::Login}>{ "login" }</Link<Route>>
-                    <p>{ "or" }</p>
-                    <Link<Route> to={Route::Register}>{ "register" }</Link<Route>>
-                </div>
+                <Unauthorized />
             </>
         }
     }
@@ -234,7 +239,7 @@ impl Account {
             <>
                 <Header title="account" heading="account"/>
 
-                <div>{ "loading..." }</div>
+                <Loading />
             </>
         }
     }

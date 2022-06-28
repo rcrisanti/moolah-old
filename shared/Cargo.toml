@@ -7,11 +7,12 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-diesel = "1.4.8"
+diesel = { version = "1.4.8", features = ["chrono"] }
 validator = { version = "0.15", features = ["derive"] }
 regex = "1.5"
 lazy_static = "1.4"
 dotenv = "0.15.0"
 thiserror = "1.0"
 getrandom = { version = "0.2", features = ["js"] }
+chrono = { version = "0.4", features = ["serde", "wasmbind"] }
 argon2 = { version = "0.4", features = ["std"], default-features = true }
