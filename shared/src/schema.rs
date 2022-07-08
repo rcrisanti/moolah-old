@@ -1,18 +1,39 @@
 table! {
-    delta_dates (delta_id, date) {
-        delta_id -> Int4,
-        date -> Date,
-    }
-}
-
-table! {
-    deltas (id) {
+    daily_deltas (id) {
         id -> Int4,
         prediction_id -> Int4,
         name -> Varchar,
         value -> Float4,
         positive_uncertainty -> Float4,
         negative_uncertainty -> Float4,
+        start_on -> Date,
+        end_on -> Date,
+    }
+}
+
+table! {
+    monthly_deltas (id) {
+        id -> Int4,
+        prediction_id -> Int4,
+        name -> Varchar,
+        value -> Float4,
+        positive_uncertainty -> Float4,
+        negative_uncertainty -> Float4,
+        start_on -> Date,
+        end_on -> Date,
+        repeat_day -> Int2,
+    }
+}
+
+table! {
+    once_deltas (id) {
+        id -> Int4,
+        prediction_id -> Int4,
+        name -> Varchar,
+        value -> Float4,
+        positive_uncertainty -> Float4,
+        negative_uncertainty -> Float4,
+        start_on -> Date,
     }
 }
 
@@ -35,12 +56,30 @@ table! {
     }
 }
 
-joinable!(delta_dates -> deltas (delta_id));
-joinable!(deltas -> predictions (prediction_id));
+table! {
+    weekly_deltas (id) {
+        id -> Int4,
+        prediction_id -> Int4,
+        name -> Varchar,
+        value -> Float4,
+        positive_uncertainty -> Float4,
+        negative_uncertainty -> Float4,
+        start_on -> Date,
+        end_on -> Date,
+        repeat_weekday -> Int2,
+    }
+}
+
+joinable!(daily_deltas -> predictions (prediction_id));
+joinable!(monthly_deltas -> predictions (prediction_id));
+joinable!(once_deltas -> predictions (prediction_id));
+joinable!(weekly_deltas -> predictions (prediction_id));
 
 allow_tables_to_appear_in_same_query!(
-    delta_dates,
-    deltas,
+    daily_deltas,
+    monthly_deltas,
+    once_deltas,
     predictions,
     users,
+    weekly_deltas,
 );

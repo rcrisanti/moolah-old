@@ -64,7 +64,7 @@ impl PredictionPanel {
                             } else if dates.len() <= 3 {
                                 dates.into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", ")
                             } else {
-                                format!("{}...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
+                                format!("{}, ...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
                             }
                         };
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::NaiveDate;
 use reqwest::{Client, StatusCode};
 use shared::models::predictions::PredictionWithDeltas;
-use shared::models::{DeltaDate, DeltaWithDates};
+use shared::models::{deltas::DateRepetition, Delta};
 use shared::routes;
 use yew::prelude::*;
 
@@ -59,7 +59,7 @@ impl Component for Home {
                     match &self.prediction_response {
                         Some(Ok(predictions)) => self.view_logged_in(ctx, predictions.to_vec()),
                         Some(Err(err)) => self.view_not_logged_in(ctx),
-                        None => self.view_loading(ctx)
+                        None => self.view_loading(ctx),
                     }
                 }
             </>
@@ -117,45 +117,33 @@ impl Home {
                 username: identity_recall().unwrap(),
                 name: String::from("prediction 1"),
                 deltas: vec![
-                    DeltaWithDates {
+                    Delta {
                         id: 1,
                         prediction_id: 1,
                         name: String::from("delta 1"),
                         value: 32.4,
-                        dates: vec![
-                            DeltaDate {
-                                delta_id: 1,
-                                date: NaiveDate::from_ymd(2022, 3, 21),
-                            },
-                            DeltaDate {
-                                delta_id: 1,
-                                date: NaiveDate::from_ymd(2022, 4, 21),
-                            },
-                            DeltaDate {
-                                delta_id: 1,
-                                date: NaiveDate::from_ymd(2022, 5, 21),
-                            },
-                        ],
                         positive_uncertainty: 0.0,
                         negative_uncertainty: 0.0,
+                        dates: vec![
+                            NaiveDate::from_ymd(2022, 3, 21),
+                            NaiveDate::from_ymd(2022, 4, 21),
+                            NaiveDate::from_ymd(2022, 5, 21),
+                        ],
+                        repetition: DateRepetition::Monthly(21),
                     },
-                    DeltaWithDates {
+                    Delta {
                         id: 2,
                         prediction_id: 1,
                         name: String::from("delta 2"),
                         value: -125.,
-                        dates: vec![
-                            DeltaDate {
-                                delta_id: 2,
-                                date: NaiveDate::from_ymd(2022, 1, 1),
-                            },
-                            DeltaDate {
-                                delta_id: 2,
-                                date: NaiveDate::from_ymd(2022, 1, 8),
-                            },
-                        ],
+
                         positive_uncertainty: 5.0,
                         negative_uncertainty: 5.0,
+                        dates: vec![
+                            NaiveDate::from_ymd(2022, 1, 1),
+                            NaiveDate::from_ymd(2022, 1, 8),
+                        ],
+                        repetition: DateRepetition::Weekly(7),
                     },
                 ],
             },
@@ -163,27 +151,21 @@ impl Home {
                 id: 2,
                 username: identity_recall().unwrap(),
                 name: String::from("pred2"),
-                deltas: vec![DeltaWithDates {
+                deltas: vec![Delta {
                     id: 3,
                     prediction_id: 2,
                     name: String::from("delta 1"),
                     value: 32.4,
-                    dates: vec![
-                        DeltaDate {
-                            delta_id: 3,
-                            date: NaiveDate::from_ymd(2022, 5, 21),
-                        },
-                        DeltaDate {
-                            delta_id: 3,
-                            date: NaiveDate::from_ymd(2022, 5, 22),
-                        },
-                        DeltaDate {
-                            delta_id: 3,
-                            date: NaiveDate::from_ymd(2022, 5, 23),
-                        },
-                    ],
                     positive_uncertainty: 0.0,
                     negative_uncertainty: 0.0,
+                    dates: vec![
+                        NaiveDate::from_ymd(2022, 5, 21),
+                        NaiveDate::from_ymd(2022, 5, 22),
+                        NaiveDate::from_ymd(2022, 5, 23),
+                        NaiveDate::from_ymd(2022, 5, 24),
+                        NaiveDate::from_ymd(2022, 5, 25),
+                    ],
+                    repetition: DateRepetition::Daily,
                 }],
             },
         ];
