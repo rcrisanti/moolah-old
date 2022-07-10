@@ -1,10 +1,7 @@
 use actix_identity::Identity;
 use actix_web::{web, HttpResponse};
 use diesel::{insert_into, prelude::*};
-use shared::models::{
-    DailyDelta, Delta, MonthlyDelta, NewPrediction, OnceDelta, Prediction, PredictionWithDeltas,
-    WeeklyDelta,
-};
+use shared::models::{DbDelta, Delta, NewPrediction, Prediction, PredictionWithDeltas};
 use shared::schema::predictions::dsl;
 
 use super::{is_authenticated_user, AuthenticationStatus};
@@ -24,37 +21,22 @@ pub async fn get_predictions(
                 .filter(dsl::username.eq(requested_username))
                 .load::<Prediction>(&connection)?;
 
-            let monthly_deltas = MonthlyDelta::belonging_to(&preds)
-                .load::<MonthlyDelta>(&connection)?
-                .grouped_by(&preds);
-
-            let weekly_deltas = WeeklyDelta::belonging_to(&preds)
-                .load::<WeeklyDelta>(&connection)?
-                .grouped_by(&preds);
-
-            let daily_deltas = DailyDelta::belonging_to(&preds)
-                .load::<DailyDelta>(&connection)?
-                .grouped_by(&preds);
-
-            let once_deltas = OnceDelta::belonging_to(&preds)
-                .load::<OnceDelta>(&connection)?
+            let deltas = DbDelta::belonging_to(&preds)
+                .load::<DbDelta>(&connection)?
                 .grouped_by(&preds);
 
             let full_preds = preds
                 .into_iter()
-                .zip(monthly_deltas)
-                .zip(weekly_deltas)
-                .zip(daily_deltas)
-                .zip(once_deltas)
-                .map(|((((pred, monthly), weekly), daily), once)| {
-                    let deltas = monthly
-                        .into_iter()
-                        .map(|d| d.into())
-                        .chain(weekly.into_iter().map(|d| d.into()))
-                        .chain(daily.into_iter().map(|d| d.into()))
-                        .chain(once.into_iter().map(|d| d.into()))
-                        .collect::<Vec<Delta>>();
-                    (pred, deltas).into()
+                .zip(deltas)
+                .map(|(pred, deltas)| {
+                    (
+                        pred,
+                        deltas
+                            .into_iter()
+                            .map(|d| Delta::try_from(d).expect("could not convert to delta"))
+                            .collect::<Vec<_>>(),
+                    )
+                        .into()
                 })
                 .collect::<Vec<PredictionWithDeltas>>();
 

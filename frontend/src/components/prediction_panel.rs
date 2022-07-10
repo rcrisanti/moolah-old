@@ -41,51 +41,51 @@ impl PredictionPanel {
                     <th>{ "dates" }</th>
                     <th>{ "uncertainty" }</th>
                 </tr>
-                {
-                    ctx.props().prediction.deltas.clone().into_iter().map(|delta| {
-                        let value = format!(
-                            "{}${:.2}",
-                            if delta.value.is_sign_negative() {
-                                "-"
-                            } else {
-                                ""
-                            },
-                            delta.value.abs()
-                        );
+                // {
+                //     ctx.props().prediction.deltas.clone().into_iter().map(|delta| {
+                //         let value = format!(
+                //             "{}${:.2}",
+                //             if delta.value.is_sign_negative() {
+                //                 "-"
+                //             } else {
+                //                 ""
+                //             },
+                //             delta.value.abs()
+                //         );
 
-                        let mut dates = delta.dates.clone();
-                        dates.sort();
+                //         let mut dates = delta.dates.clone();
+                //         dates.sort();
 
-                        let dates_fmt = {
-                            if dates.len() == 0 {
-                                 "N/A".to_string()
-                            } else if dates.len() == 1 {
-                                dates.first().expect("should have 1 date").format("%x").to_string()
-                            } else if dates.len() <= 3 {
-                                dates.into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", ")
-                            } else {
-                                format!("{}, ...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
-                            }
-                        };
+                //         let dates_fmt = {
+                //             if dates.len() == 0 {
+                //                  "N/A".to_string()
+                //             } else if dates.len() == 1 {
+                //                 dates.first().expect("should have 1 date").format("%x").to_string()
+                //             } else if dates.len() <= 3 {
+                //                 dates.into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", ")
+                //             } else {
+                //                 format!("{}, ...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
+                //             }
+                //         };
 
-                        let unc_fmt = {
-                            if delta.positive_uncertainty == delta.negative_uncertainty {
-                                format!("+/- ${:.2}", delta.positive_uncertainty)
-                            } else {
-                                format!("+${:.2} / -${:.2}", delta.positive_uncertainty, delta.negative_uncertainty)
-                            }
-                        };
+                //         let unc_fmt = {
+                //             if delta.positive_uncertainty == delta.negative_uncertainty {
+                //                 format!("+/- ${:.2}", delta.positive_uncertainty)
+                //             } else {
+                //                 format!("+${:.2} / -${:.2}", delta.positive_uncertainty, delta.negative_uncertainty)
+                //             }
+                //         };
 
-                        html! {
-                            <tr key={ delta.id }>
-                                <td>{ delta.name }</td>
-                                <td>{ value }</td>
-                                <td>{ dates_fmt }</td>
-                                <td>{ unc_fmt }</td>
-                            </tr>
-                        }
-                    }).collect::<Html>()
-                }
+                //         html! {
+                //             <tr key={ delta.id }>
+                //                 <td>{ delta.name }</td>
+                //                 <td>{ value }</td>
+                //                 <td>{ dates_fmt }</td>
+                //                 <td>{ unc_fmt }</td>
+                //             </tr>
+                //         }
+                //     }).collect::<Html>()
+                // }
             </table>
         }
     }
