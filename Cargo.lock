@@ -680,6 +680,7 @@ dependencies = [
  "chrono",
  "gloo-dialogs",
  "gloo-storage",
+ "log",
  "regex",
  "reqwest",
  "serde",
@@ -688,8 +689,8 @@ dependencies = [
  "thiserror",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-logger",
  "web-sys",
- "weblog",
  "yew",
  "yew-router",
 ]
@@ -2219,6 +2220,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a89911bd99e5f3659ec4acf9c4d93b0a90fe4a2a11f15328472058edc5261be"
 
 [[package]]
+name = "wasm-logger"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "074649a66bb306c8f2068c9016395fa65d8e08d2affcbf95acf3c24c3ab19718"
+dependencies = [
+ "log",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "web-sys"
 version = "0.3.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2226,28 +2238,6 @@ checksum = "2fed94beee57daf8dd7d51f2b15dc2bcde92d7a72304cdf662a4371008b71b90"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "weblog"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6eec0958e0181982bc8b4577b1363f21300a670603615c58643f172c92c47357"
-dependencies = [
- "wasm-bindgen",
- "web-sys",
- "weblog-proc-macro",
-]
-
-[[package]]
-name = "weblog-proc-macro"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d9abb8ee84ede5408a346721d72fb216a27f53a539ff3c83ed1bf7625af7104"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

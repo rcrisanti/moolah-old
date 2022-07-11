@@ -2,7 +2,6 @@ use reqwest::{Client, StatusCode};
 use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
-use weblog::console_debug;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -121,22 +120,22 @@ impl Component for Register {
         match msg {
             RegisterMsg::UsernameChanged(username) => {
                 self.username = username;
-                console_debug!("changed username");
+                log::trace!("changed username");
             }
             RegisterMsg::EmailChanged(email) => {
                 self.email = email;
-                console_debug!("changed email");
+                log::trace!("changed email");
             }
             RegisterMsg::PasswordChanged(password) => {
                 self.password = password;
-                console_debug!("changed password");
+                log::trace!("changed password");
             }
             RegisterMsg::PasswordConfirmChanged(password_confirm) => {
                 self.password_confirm = password_confirm;
-                console_debug!("changed confirm password");
+                log::trace!("changed confirm password");
             }
             RegisterMsg::Submitted => {
-                console_debug!("submitting form");
+                log::trace!("submitting form");
                 let user_form = UserRegisterForm::new(
                     self.username.clone(),
                     self.email.clone(),
@@ -160,7 +159,7 @@ impl Component for Register {
                     scope
                         .callback(move |_| match response.status() {
                             StatusCode::OK => {
-                                console_debug!("successfully submitted form");
+                                log::debug!("successfully submitted form");
                                 RegisterMsg::SuccessfulLogin(Route::Home)
                             }
                             StatusCode::INTERNAL_SERVER_ERROR => RegisterMsg::Error(

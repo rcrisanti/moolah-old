@@ -1,6 +1,5 @@
 use reqwest::{Client, StatusCode};
 use shared::routes;
-use weblog::console_error;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -48,7 +47,7 @@ impl Component for Logout {
                         .expect("could not post logout");
 
                     if response.status() != StatusCode::OK {
-                        console_error!("unable to log out");
+                        log::error!("unable to log out");
                     }
                 });
             }

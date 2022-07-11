@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use std::hash::Hash;
 use std::str::FromStr;
 
 use chrono::NaiveDate;
@@ -76,6 +77,21 @@ impl Delta {
         &self.dates
     }
 }
+
+impl Hash for Delta {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.prediction_id.hash(state);
+        self.name.hash(state);
+        // self.value.hash(state);
+        // self.positive_uncertainty.hash(state);
+        // self.negative_uncertainty.hash(state);
+        self.repetition.hash(state);
+        self.dates.hash(state);
+    }
+}
+
+impl Eq for Delta {}
 
 impl TryFrom<DbDelta> for Delta {
     type Error = MoolahSharedError;

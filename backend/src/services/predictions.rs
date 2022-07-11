@@ -12,6 +12,8 @@ pub async fn get_predictions(
     id: Identity,
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
+    log::info!("getting predictions");
+
     let requested_username = requested_username.into_inner().to_lowercase();
     match is_authenticated_user(&id, &requested_username) {
         AuthenticationStatus::Matching => {
@@ -57,18 +59,24 @@ pub async fn post_prediction(
     match is_authenticated_user(&id, &username) {
         AuthenticationStatus::Matching => {
             if username == prediction.username {
+                log::debug!("is authorized user");
                 let connection = pool.get()?;
 
-                insert_into(dsl::predictions)
+                let num_inserted_rows = insert_into(dsl::predictions)
                     .values(prediction)
                     .on_conflict_do_nothing()
                     .execute(&connection)?;
 
+                log::debug!("completed insert of {} rows", num_inserted_rows);
                 Ok(HttpResponse::Ok().finish())
             } else {
+                log::debug!("is not authorized user");
                 Ok(HttpResponse::Unauthorized().finish())
             }
         }
-        _ => Ok(HttpResponse::Unauthorized().finish()),
+        _ => {
+            log::debug!("is authorized user");
+            Ok(HttpResponse::Unauthorized().finish())
+        }
     }
 }

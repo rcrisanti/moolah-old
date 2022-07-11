@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::MoolahSharedError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Repetition {
     Monthly {
         from: NaiveDate,
@@ -128,7 +128,7 @@ impl Repetition {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct MonthDay(u8);
 
 impl MonthDay {

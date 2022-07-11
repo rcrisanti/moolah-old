@@ -5,12 +5,26 @@ use crate::schema::predictions;
 
 #[derive(Queryable, Identifiable, Serialize)]
 pub struct Prediction {
-    pub id: i32,
-    pub username: String,
-    pub name: String,
+    id: i32,
+    username: String,
+    name: String,
 }
 
-#[derive(Insertable, Deserialize)]
+impl Prediction {
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Debug, Insertable, Deserialize, Serialize)]
 #[table_name = "predictions"]
 pub struct NewPrediction {
     pub username: String,
@@ -26,7 +40,7 @@ impl NewPrediction {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct PredictionWithDeltas {
     pub id: i32,
     pub username: String,

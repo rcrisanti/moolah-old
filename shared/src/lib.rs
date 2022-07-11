@@ -5,6 +5,7 @@ extern crate lazy_static;
 
 pub mod errors;
 pub mod models;
+pub mod path_patterns;
 pub mod routes;
 pub mod schema;
 

@@ -6,7 +6,6 @@ use shared::models::{User, UserLoginRequestForm};
 use shared::routes;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
-use weblog::console_debug;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -114,14 +113,14 @@ impl Component for Login {
         match msg {
             LoginMsg::UsernameChanged(username) => {
                 self.username = username;
-                console_debug!("changed username");
+                log::trace!("changed username");
             }
             LoginMsg::PasswordChanged(password) => {
                 self.password = password;
-                console_debug!("changed password");
+                log::trace!("changed password");
             }
             LoginMsg::Submitted => {
-                console_debug!("submitting form");
+                log::trace!("submitting form");
                 let user_form = UserLoginRequestForm::new(self.username.clone());
 
                 let path = fully_qualified_path(routes::LOGIN_REQUEST_PASSWORD.into())
