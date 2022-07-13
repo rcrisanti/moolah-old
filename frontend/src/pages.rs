@@ -1,5 +1,5 @@
 mod account;
-mod home;
+pub mod home;
 mod login;
 mod logout;
 mod register;

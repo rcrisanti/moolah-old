@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::Delta;
 use crate::schema::predictions;
 
-#[derive(Queryable, Identifiable, Serialize)]
+#[derive(Queryable, Identifiable, Serialize, Deserialize, Clone)]
 pub struct Prediction {
     id: i32,
     username: String,
@@ -40,12 +40,23 @@ impl NewPrediction {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct PredictionWithDeltas {
     pub id: i32,
     pub username: String,
     pub name: String,
     pub deltas: Vec<Delta>,
+}
+
+impl From<Prediction> for PredictionWithDeltas {
+    fn from(pred: Prediction) -> Self {
+        PredictionWithDeltas {
+            id: pred.id,
+            username: pred.username,
+            name: pred.name,
+            deltas: Vec::new(),
+        }
+    }
 }
 
 impl From<(Prediction, Vec<Delta>)> for PredictionWithDeltas {

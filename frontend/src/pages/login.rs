@@ -10,11 +10,11 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::app::Route;
-use crate::components::Header;
-use crate::services::identity_remember;
+use crate::components::{AppContext, Header};
 use crate::services::requests::fully_qualified_path;
 
 pub enum LoginMsg {
+    AppContextUpdated(AppContext),
     UsernameChanged(String),
     PasswordChanged(String),
     Submitted,
@@ -38,6 +38,7 @@ impl Display for LoginError {
 }
 
 pub struct Login {
+    app_context: AppContext,
     username: String,
     password: String,
     redirect_to: Option<Route>,
@@ -48,8 +49,14 @@ impl Component for Login {
     type Message = LoginMsg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(LoginMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
         Login {
+            app_context,
             username: String::new(),
             password: String::new(),
             redirect_to: None,
@@ -197,11 +204,18 @@ impl Component for Login {
                 });
             }
             LoginMsg::SuccessfulLogin(redirect_page) => {
-                identity_remember(self.username.clone().to_lowercase())
-                    .expect("could not store identity in session storage");
+                self.app_context.borrow_mut().login(self.username.clone());
                 self.redirect_to = Some(redirect_page)
             }
             LoginMsg::Error(err) => self.error_msg = Some(err),
+            LoginMsg::AppContextUpdated(context) => {
+                if context.borrow().current_username()
+                    == self.app_context.borrow().current_username()
+                {
+                    // self.app_context = context;
+                    return false;
+                }
+            }
         }
         true
     }

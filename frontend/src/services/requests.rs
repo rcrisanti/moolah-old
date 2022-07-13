@@ -24,9 +24,9 @@ pub fn fully_qualified_path(relative_url: String) -> Result<String, MoolahFronte
 }
 
 pub fn replace_pattern(
-    base: &'static str,
-    re_pattern: &'static str,
-    replace: String,
+    base: &str,
+    re_pattern: &str,
+    replace: &str,
 ) -> Result<String, MoolahFrontendError> {
     let re = Regex::new(re_pattern)?;
 
@@ -76,12 +76,7 @@ mod tests {
     #[test]
     fn test_replace_pattern() {
         assert_eq!(
-            replace_pattern(
-                "api/account/{username}",
-                r"\{username\}",
-                "my_username".to_string()
-            )
-            .unwrap(),
+            replace_pattern("api/account/{username}", r"\{username\}", "my_username").unwrap(),
             "api/account/my_username".to_string()
         )
     }

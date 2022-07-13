@@ -2,7 +2,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::app::Route;
-use crate::services::identity_recall;
+use crate::components::AppContext;
 
 #[derive(Properties, PartialEq)]
 pub struct HeaderProps {
@@ -11,14 +11,27 @@ pub struct HeaderProps {
     pub heading: String,
 }
 
-pub struct Header {}
+pub enum HeaderMsg {
+    AppContextUpdated(AppContext),
+}
+
+pub struct Header {
+    app_context: AppContext,
+}
 
 impl Component for Header {
-    type Message = ();
+    type Message = HeaderMsg;
     type Properties = HeaderProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        Header {}
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(HeaderMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
+        Header {
+            app_context,
+        }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -27,7 +40,6 @@ impl Component for Header {
             None => "moolah".to_string(),
         };
 
-        let is_logged_in = identity_recall().is_some();
 
         html! {
             <>
@@ -40,7 +52,7 @@ impl Component for Header {
                     <div style={"float:right;"}>
                         <Link<Route> to={Route::Home}>{ "home" }</Link<Route>>
                         {
-                            if is_logged_in {
+                            if self.app_context.borrow().is_logged_in() {
                                 html! {
                                     <>
                                         <Link<Route> to={Route::Account}>{ "account" }</Link<Route>>
@@ -61,5 +73,16 @@ impl Component for Header {
                 </header>
             </>
         }
+    }
+
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            HeaderMsg::AppContextUpdated(context) => {
+                if context.borrow().is_logged_in() == self.app_context.borrow().is_logged_in() {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }

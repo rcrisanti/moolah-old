@@ -62,13 +62,14 @@ pub async fn post_prediction(
                 log::debug!("is authorized user");
                 let connection = pool.get()?;
 
-                let num_inserted_rows = insert_into(dsl::predictions)
+                let prediction: PredictionWithDeltas = insert_into(dsl::predictions)
                     .values(prediction)
-                    .on_conflict_do_nothing()
-                    .execute(&connection)?;
+                    // .on_conflict_do_nothing()
+                    .get_result::<Prediction>(&connection)?
+                    .into();
 
-                log::debug!("completed insert of {} rows", num_inserted_rows);
-                Ok(HttpResponse::Ok().finish())
+                log::debug!("completed insert of 1 rows");
+                Ok(HttpResponse::Ok().json(prediction))
             } else {
                 log::debug!("is not authorized user");
                 Ok(HttpResponse::Unauthorized().finish())

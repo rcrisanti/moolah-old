@@ -1,16 +1,13 @@
 use std::sync::Arc;
 
-use chrono::{NaiveDate, Weekday};
 use reqwest::{Client, StatusCode};
-use shared::models::deltas::app::repetition::MonthDay;
 use shared::models::predictions::PredictionWithDeltas;
-use shared::models::{Delta, Repetition};
 use shared::{path_patterns, routes};
 use yew::prelude::*;
 
-use crate::components::{Header, Loading, NewPrediction, PredictionPanel};
+use crate::components::{AppContext, Header, Loading, NewPrediction, PredictionPanel};
+use crate::services::replace_pattern;
 use crate::services::requests::fully_qualified_path;
-use crate::services::{identity_recall, replace_pattern};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum HomeError {
@@ -22,10 +19,13 @@ pub enum HomeError {
 }
 
 pub enum HomeMsg {
+    AppContextUpdated(AppContext),
     ReceivedResponse(Result<Vec<PredictionWithDeltas>, HomeError>),
+    NewPredictionCreated(PredictionWithDeltas),
 }
 
 pub struct Home {
+    app_context: AppContext,
     prediction_response: Option<Result<Vec<PredictionWithDeltas>, HomeError>>,
     client: Client,
 }
@@ -34,8 +34,14 @@ impl Component for Home {
     type Message = HomeMsg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(HomeMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
         Home {
+            app_context,
             prediction_response: None,
             client: Client::new(),
         }
@@ -43,8 +49,12 @@ impl Component for Home {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            if let Some(username) = identity_recall() {
-                self.get_predictions(ctx, username)
+            if let Some(username) = self.app_context.borrow().current_username() {
+                self.get_predictions(ctx, &username)
+            } else {
+                ctx.link()
+                    .callback(|_| HomeMsg::ReceivedResponse(Err(HomeError::Unauthorized)))
+                    .emit(0)
             }
         }
     }
@@ -56,34 +66,62 @@ impl Component for Home {
 
                 {
                     match &self.prediction_response {
-                        Some(Ok(predictions)) => self.view_logged_in(ctx, predictions.to_vec()),
-                        Some(Err(_err)) => self.view_not_logged_in(ctx),
-                        None => self.view_loading(ctx),
+                        Some(Ok(predictions)) => {
+                            log::trace!("viewing logged in");
+                            self.view_logged_in(ctx, predictions.to_vec())
+                        },
+                        Some(Err(_err)) => {
+                            log::trace!("viewing not logged in");
+                            self.view_not_logged_in(ctx)
+                        },
+                        None => {
+                            log::trace!("viewing loading");
+                            self.view_loading(ctx)
+                        },
                     }
                 }
             </>
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            HomeMsg::ReceivedResponse(response) => self.prediction_response = Some(response),
+            HomeMsg::ReceivedResponse(response) => {
+                log::trace!("received response");
+                self.prediction_response = Some(response)
+            }
+            HomeMsg::AppContextUpdated(context) => {
+                if context.borrow().current_username()
+                    == self.app_context.borrow().current_username()
+                {
+                    // self.app_context = context;
+                    return false;
+                }
+            }
+            HomeMsg::NewPredictionCreated(new_pred) => {
+                if let Some(Ok(mut preds)) = self.prediction_response.clone() {
+                    preds.push(new_pred);
+                    self.prediction_response = Some(Ok(preds))
+                }
+            }
         }
         true
     }
 }
 
 impl Home {
-    fn view_logged_in(&self, _ctx: &Context<Self>, predictions: Vec<PredictionWithDeltas>) -> Html {
+    fn view_logged_in(&self, ctx: &Context<Self>, predictions: Vec<PredictionWithDeltas>) -> Html {
+        let oncreate_new_pred = ctx.link().callback(HomeMsg::NewPredictionCreated);
+
         html! {
             <div>
                 { format!("you have {} predictions created", predictions.len()) }
 
-                <NewPrediction username={identity_recall().unwrap()} />
+                <NewPrediction oncreate={oncreate_new_pred} />
 
                 {
                     predictions.into_iter().map(|pred| html!{
-                        <PredictionPanel prediction={pred} />
+                        <PredictionPanel prediction={pred.clone()} />
                     }).collect::<Html>()
                 }
             </div>
@@ -104,7 +142,7 @@ impl Home {
 }
 
 impl Home {
-    fn get_predictions(&self, ctx: &Context<Self>, username: String) {
+    fn get_predictions(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
             replace_pattern(routes::PREDICTIONS, path_patterns::PREDICTIONS, username)
                 .expect("could not replace pattern in route"),
@@ -122,8 +160,8 @@ impl Home {
 
             let response_preds = match response.status() {
                 StatusCode::OK => {
-                    let preds: Vec<PredictionWithDeltas> = response
-                        .json()
+                    let preds = response
+                        .json::<Vec<PredictionWithDeltas>>()
                         .await
                         .expect("could not get predictions from response");
                     Ok(preds)
@@ -138,62 +176,5 @@ impl Home {
                 .callback(move |_| HomeMsg::ReceivedResponse(response_preds.clone()))
                 .emit(0);
         });
-
-        // For testing purposes
-        // let response_preds = vec![
-        //     PredictionWithDeltas {
-        //         id: 1,
-        //         username: identity_recall().unwrap(),
-        //         name: String::from("prediction 1"),
-        //         deltas: vec![
-        //             Delta::new(
-        //                 1,
-        //                 1,
-        //                 String::from("delta 1"),
-        //                 32.4,
-        //                 0.0,
-        //                 0.0,
-        //                 Repetition::Monthly {
-        //                     from: NaiveDate::from_ymd(2022, 3, 21),
-        //                     to: NaiveDate::from_ymd(2022, 5, 21),
-        //                     repeat_on_day: MonthDay::new(21).unwrap(),
-        //                 },
-        //             ),
-        //             Delta::new(
-        //                 2,
-        //                 1,
-        //                 String::from("delta 2"),
-        //                 -125.,
-        //                 5.0,
-        //                 5.0,
-        //                 Repetition::Weekly {
-        //                     from: NaiveDate::from_ymd(2022, 1, 1),
-        //                     to: NaiveDate::from_ymd(2022, 1, 12),
-        //                     repeat_on_weekday: Weekday::Mon,
-        //                 },
-        //             ),
-        //         ],
-        //     },
-        //     PredictionWithDeltas {
-        //         id: 2,
-        //         username: identity_recall().unwrap(),
-        //         name: String::from("pred2"),
-        //         deltas: vec![Delta::new(
-        //             3,
-        //             2,
-        //             String::from("delta 1"),
-        //             32.4,
-        //             0.0,
-        //             0.0,
-        //             Repetition::Daily {
-        //                 from: NaiveDate::from_ymd(2022, 5, 21),
-        //                 to: NaiveDate::from_ymd(2022, 5, 25),
-        //             },
-        //         )],
-        //     },
-        // ];
-        // ctx.link()
-        //     .callback(move |_| HomeMsg::ReceivedResponse(Ok(response_preds.clone())))
-        //     .emit(0);
     }
 }

@@ -1,7 +1,10 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::components::Footer;
+use crate::components::{AppContext, ContextData, Footer};
 use crate::pages::{Account, Home, Login, Logout, Register};
 
 #[derive(Routable, PartialEq, Clone, Copy, Debug)]
@@ -48,14 +51,16 @@ impl Component for App {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
+        let context = Rc::new(RefCell::new(ContextData::new()));
+
         html! {
-            <>
+            <ContextProvider<AppContext> context={context}>
                 <BrowserRouter>
                     <Switch<Route> render={Switch::render(switch)} />
                 </BrowserRouter>
 
                 <Footer />
-            </>
+            </ContextProvider<AppContext>>
         }
     }
 }

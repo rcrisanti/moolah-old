@@ -4,25 +4,33 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::app::Route;
+use crate::components::AppContext;
 use crate::services::requests::fully_qualified_path;
-use crate::services::{identity_forget, identity_recall};
 
 pub enum LogoutMsg {
+    AppContextUpdated(AppContext),
     Logout,
 }
 
-pub struct Logout {}
+pub struct Logout {
+    app_context: AppContext,
+}
 
 impl Component for Logout {
     type Message = LogoutMsg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        Logout {}
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(LogoutMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
+        Logout { app_context }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if identity_recall().is_some() {
+        if self.app_context.borrow().is_logged_in() {
             ctx.link().callback(|_| LogoutMsg::Logout).emit(0);
         }
 
@@ -34,7 +42,7 @@ impl Component for Logout {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             LogoutMsg::Logout => {
-                identity_forget();
+                self.app_context.borrow_mut().logout();
 
                 let path = fully_qualified_path(routes::LOGOUT.into())
                     .expect("could not build fully qualified path");
@@ -51,6 +59,7 @@ impl Component for Logout {
                     }
                 });
             }
+            LogoutMsg::AppContextUpdated(context) => self.app_context = context,
         }
         true
     }

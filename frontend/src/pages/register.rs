@@ -5,13 +5,13 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::app::Route;
 use crate::components::Header;
-use crate::services::identity_remember;
 use crate::services::requests::fully_qualified_path;
+use crate::{app::Route, components::AppContext};
 use shared::{models::UserRegisterForm, routes};
 
 pub enum RegisterMsg {
+    AppContextUpdated(AppContext),
     UsernameChanged(String),
     EmailChanged(String),
     PasswordChanged(String),
@@ -30,6 +30,7 @@ pub enum RegisterError {
 }
 
 pub struct Register {
+    app_context: AppContext,
     username: String,
     email: String,
     password: String,
@@ -42,8 +43,14 @@ impl Component for Register {
     type Message = RegisterMsg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(RegisterMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
         Register {
+            app_context,
             username: String::new(),
             email: String::new(),
             password: String::new(),
@@ -174,11 +181,11 @@ impl Component for Register {
                 });
             }
             RegisterMsg::SuccessfulLogin(redirect_page) => {
-                identity_remember(self.username.clone().to_lowercase())
-                    .expect("could not store identity in session storage");
+                self.app_context.borrow_mut().login(self.username.clone());
                 self.redirect_to = Some(redirect_page)
             }
             RegisterMsg::Error(err) => self.error_msg = Some(err),
+            RegisterMsg::AppContextUpdated(context) => self.app_context = context,
         }
         true
     }

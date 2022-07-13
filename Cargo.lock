@@ -679,7 +679,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "gloo-dialogs",
- "gloo-storage",
  "log",
  "regex",
  "reqwest",

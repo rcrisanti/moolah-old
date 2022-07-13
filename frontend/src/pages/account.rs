@@ -8,9 +8,9 @@ use std::sync::Arc;
 use thiserror::Error;
 use yew::prelude::*;
 
+use crate::components::AppContext;
 use crate::components::{Header, Loading, Unauthorized};
 use crate::services::requests::{fully_qualified_path, replace_pattern};
-use crate::services::{identity_forget, identity_recall};
 
 const PATH_PATTERN: &str = r"\{username\}";
 const DATETIME_FORMAT: &str = "%a %h %d %Y %r %Z";
@@ -25,6 +25,7 @@ pub enum AccountError {
 }
 
 pub enum AccountMsg {
+    AppContextUpdated(AppContext),
     ReceivedResponse(Result<UserAccount, AccountError>),
     ResetPassword,
     DeleteAccountInitiated,
@@ -34,6 +35,7 @@ pub enum AccountMsg {
 }
 
 pub struct Account {
+    app_context: AppContext,
     account: Option<Result<UserAccount, AccountError>>,
     client: Client,
     delete_account_err: Option<String>,
@@ -44,54 +46,27 @@ impl Component for Account {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let username = identity_recall();
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(AccountMsg::AppContextUpdated))
+            .expect("no AppContext provided");
 
-        if let Some(username) = username {
-            let path = fully_qualified_path(
-                replace_pattern(routes::ACCOUNT, PATH_PATTERN, username)
-                    .expect("could not replace pattern in route"),
-            )
-            .expect("could not create path");
+        Account {
+            app_context,
+            account: None,
+            client: Client::new(),
+            delete_account_err: None,
+        }
+    }
 
-            let client = Client::new();
-            let scope = Arc::new(ctx.link().clone());
-            let arc_client = Arc::new(client.clone());
-            wasm_bindgen_futures::spawn_local(async move {
-                let response = arc_client
-                    .get(path)
-                    .send()
-                    .await
-                    .expect("could not get account");
-
-                let response_account = match response.status() {
-                    StatusCode::OK => {
-                        let account: UserAccount = response
-                            .json()
-                            .await
-                            .expect("could not get account from response");
-                        Ok(account)
-                    }
-                    StatusCode::UNAUTHORIZED => Err(AccountError::Unauthorized),
-                    _ => Err(AccountError::Other(
-                        response.text().await.expect("could not get body text"),
-                    )),
-                };
-
-                scope
-                    .callback(move |_| AccountMsg::ReceivedResponse(response_account.clone()))
-                    .emit(0);
-            });
-
-            Account {
-                account: None,
-                client,
-                delete_account_err: None,
-            }
-        } else {
-            Account {
-                account: Some(Err(AccountError::Unauthorized)),
-                client: Client::new(),
-                delete_account_err: None,
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            if let Some(username) = self.app_context.borrow().current_username() {
+                self.get_account(ctx, &username)
+            } else {
+                ctx.link()
+                    .callback(|_| AccountMsg::ReceivedResponse(Err(AccountError::Unauthorized)))
+                    .emit(0)
             }
         }
     }
@@ -124,7 +99,8 @@ impl Component for Account {
                     replace_pattern(
                         routes::ACCOUNT,
                         PATH_PATTERN,
-                        self.account
+                        &self
+                            .account
                             .as_ref()
                             .expect("should have account")
                             .as_ref()
@@ -162,8 +138,17 @@ impl Component for Account {
             }
             AccountMsg::DeleteAccountError(err) => self.delete_account_err = Some(err),
             AccountMsg::DeleteAccountSuccessful => {
-                identity_forget();
+                // identity_forget();
+                self.app_context.borrow_mut().logout();
                 self.account = Some(Err(AccountError::Unauthorized));
+            }
+            AccountMsg::AppContextUpdated(context) => {
+                if context.borrow().current_username()
+                    == self.app_context.borrow().current_username()
+                {
+                    // self.app_context = context;
+                    return false;
+                }
             }
         }
         true
@@ -242,5 +227,44 @@ impl Account {
                 <Loading />
             </>
         }
+    }
+}
+
+impl Account {
+    fn get_account(&self, ctx: &Context<Self>, username: &str) {
+        let path = fully_qualified_path(
+            replace_pattern(routes::ACCOUNT, PATH_PATTERN, username)
+                .expect("could not replace pattern in route"),
+        )
+        .expect("could not create path");
+
+        let client = Client::new();
+        let scope = Arc::new(ctx.link().clone());
+        let arc_client = Arc::new(client.clone());
+        wasm_bindgen_futures::spawn_local(async move {
+            let response = arc_client
+                .get(path)
+                .send()
+                .await
+                .expect("could not get account");
+
+            let response_account = match response.status() {
+                StatusCode::OK => {
+                    let account: UserAccount = response
+                        .json()
+                        .await
+                        .expect("could not get account from response");
+                    Ok(account)
+                }
+                StatusCode::UNAUTHORIZED => Err(AccountError::Unauthorized),
+                _ => Err(AccountError::Other(
+                    response.text().await.expect("could not get body text"),
+                )),
+            };
+
+            scope
+                .callback(move |_| AccountMsg::ReceivedResponse(response_account.clone()))
+                .emit(0);
+        });
     }
 }

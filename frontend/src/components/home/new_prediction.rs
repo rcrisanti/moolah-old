@@ -1,17 +1,22 @@
 use std::sync::Arc;
 
 use reqwest::{Client, StatusCode};
-use shared::{models, path_patterns, routes};
+use shared::{
+    models::{self, PredictionWithDeltas},
+    path_patterns, routes,
+};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-// use super::{HomeContext, HomeContextMsg};
-use crate::services::{replace_pattern, requests::fully_qualified_path};
+use crate::{
+    components::AppContext,
+    services::{replace_pattern, requests::fully_qualified_path},
+};
 
 #[derive(Properties, PartialEq)]
 pub struct NewPredictionProps {
-    pub username: String,
+    pub oncreate: Callback<PredictionWithDeltas>,
 }
 
 #[derive(Debug, thiserror::Error, Clone)]
@@ -19,18 +24,24 @@ pub enum NewPredictionError {
     #[error("unauthorized")]
     Unauthorized,
 
+    #[error("error receiving new prediction from response: {0}")]
+    ResponsePredictionError(String),
+
     #[error("{0}")]
     Other(String),
 }
 
 pub enum NewPredictionMsg {
+    AppContextUpdated(AppContext),
     Open(bool),
     PredictionNameChanged(String),
     Submitted,
-    ReceivedResponse(Result<(), NewPredictionError>),
+    FailedToPost(NewPredictionError),
+    ReceivedResponse(Result<PredictionWithDeltas, NewPredictionError>),
 }
 
 pub struct NewPrediction {
+    app_context: AppContext,
     prediction_name: String,
     client: Client,
     response_error: Option<NewPredictionError>,
@@ -41,8 +52,14 @@ impl Component for NewPrediction {
     type Message = NewPredictionMsg;
     type Properties = NewPredictionProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (app_context, _) = ctx
+            .link()
+            .context(ctx.link().callback(NewPredictionMsg::AppContextUpdated))
+            .expect("no AppContext provided");
+
         NewPrediction {
+            app_context,
             prediction_name: String::new(),
             client: Client::new(),
             response_error: None,
@@ -102,31 +119,55 @@ impl Component for NewPrediction {
                 log::trace!("prediction name updated");
                 self.prediction_name = name
             }
-            NewPredictionMsg::Submitted => self.post_prediction(ctx),
+            NewPredictionMsg::Submitted => {
+                if let Some(username) = self.app_context.borrow().current_username() {
+                    self.post_prediction(ctx, &username)
+                } else {
+                    ctx.link()
+                        .callback(|_| {
+                            NewPredictionMsg::FailedToPost(NewPredictionError::Unauthorized)
+                        })
+                        .emit(0)
+                }
+            }
             NewPredictionMsg::ReceivedResponse(response) => match response {
-                Ok(_) => self.open = false,
+                Ok(new_pred) => {
+                    log::info!("successfully received response after posting new prediction");
+                    ctx.props().oncreate.emit(new_pred);
+                    self.open = false;
+                    // self.app_context.borrow_mut().force_reload_predictions();
+                }
                 Err(err) => self.response_error = Some(err),
             },
             NewPredictionMsg::Open(open) => self.open = open,
+            NewPredictionMsg::AppContextUpdated(context) => {
+                if context.borrow().current_username()
+                    == self.app_context.borrow().current_username()
+                {
+                    // self.app_context = context;
+                    return false;
+                }
+            }
+            NewPredictionMsg::FailedToPost(reason) => self.response_error = Some(reason),
         }
         true
     }
 }
 
 impl NewPrediction {
-    fn post_prediction(&self, ctx: &Context<Self>) {
+    fn post_prediction(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
             replace_pattern(
                 routes::PREDICTIONS,
                 path_patterns::PREDICTIONS,
-                ctx.props().username.clone(),
+                username.into(),
             )
             .expect("could not replace pattern in route"),
         )
         .expect("could not create path");
 
         let new_prediction =
-            models::NewPrediction::new(ctx.props().username.clone(), self.prediction_name.clone());
+            models::NewPrediction::new(username.into(), self.prediction_name.clone());
 
         let client = Arc::new(self.client.clone());
         let scope = Arc::new(ctx.link().clone());
@@ -136,7 +177,14 @@ impl NewPrediction {
 
             let response = if let Some(response) = response {
                 match response.status() {
-                    StatusCode::OK => Ok(()),
+                    StatusCode::OK => {
+                        response
+                            .json::<PredictionWithDeltas>()
+                            .await
+                            .map_err(|err| {
+                                NewPredictionError::ResponsePredictionError(err.to_string())
+                            })
+                    }
                     StatusCode::UNAUTHORIZED => Err(NewPredictionError::Unauthorized),
                     _ => Err(NewPredictionError::Other(
                         response
