@@ -15,8 +15,8 @@ mod services;
 
 use errors::MoolahBackendError;
 use services::{
-    delete_account, get_account, get_predictions, post_login, post_login_request_password,
-    post_logout, post_prediction, post_register,
+    delete_account, delete_prediction, get_account, get_predictions, post_login,
+    post_login_request_password, post_logout, post_prediction, post_register,
 };
 
 type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
@@ -56,7 +56,8 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::resource(routes::PREDICTIONS)
                     .route(web::get().to(get_predictions))
-                    .route(web::post().to(post_prediction)),
+                    .route(web::post().to(post_prediction))
+                    .route(web::delete().to(delete_prediction)),
             )
     })
     .bind(("127.0.0.1", 8000))?

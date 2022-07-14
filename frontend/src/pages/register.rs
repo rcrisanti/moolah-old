@@ -6,6 +6,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::components::Header;
+use crate::errors::InternalResponseError;
 use crate::services::requests::fully_qualified_path;
 use crate::{app::Route, components::AppContext};
 use shared::{models::UserRegisterForm, routes};
@@ -18,15 +19,7 @@ pub enum RegisterMsg {
     PasswordConfirmChanged(String),
     Submitted,
     SuccessfulLogin(Route),
-    Error(RegisterError),
-}
-
-pub enum RegisterError {
-    // Username(String),
-    // Email(String),
-    // Password(String),
-    // PasswordConfirm(String),
-    Other(String),
+    Error(InternalResponseError),
 }
 
 pub struct Register {
@@ -36,7 +29,7 @@ pub struct Register {
     password: String,
     password_confirm: String,
     redirect_to: Option<Route>,
-    error_msg: Option<RegisterError>,
+    error_msg: Option<InternalResponseError>,
 }
 
 impl Component for Register {
@@ -170,9 +163,9 @@ impl Component for Register {
                                 RegisterMsg::SuccessfulLogin(Route::Home)
                             }
                             StatusCode::INTERNAL_SERVER_ERROR => RegisterMsg::Error(
-                                RegisterError::Other("registration error".to_string()),
+                                InternalResponseError::Other("registration error".to_string()),
                             ),
-                            _ => RegisterMsg::Error(RegisterError::Other(format!(
+                            _ => RegisterMsg::Error(InternalResponseError::Other(format!(
                                 "unknown response status code {}",
                                 response.status()
                             ))),

@@ -6,7 +6,7 @@ use shared::{
     schema::users::dsl::{username, users},
 };
 
-use super::{is_authenticated_user, AuthenticationStatus};
+use super::{authentication_status, AuthenticationStatus};
 use crate::{errors::MoolahBackendError, Pool};
 
 pub async fn get_account(
@@ -15,7 +15,7 @@ pub async fn get_account(
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     let requested_username = requested_username.into_inner().to_lowercase();
-    match is_authenticated_user(&id, &requested_username) {
+    match authentication_status(&id, &requested_username) {
         AuthenticationStatus::Matching => {
             let connection = pool.get()?;
             let user: User = users
@@ -36,7 +36,7 @@ pub async fn delete_account(
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
     let requested_username = requested_username.into_inner().to_lowercase();
-    match is_authenticated_user(&id, &requested_username) {
+    match authentication_status(&id, &requested_username) {
         AuthenticationStatus::Matching => {
             let connection = pool.get()?;
             diesel::delete(users.filter(username.eq(requested_username))).execute(&connection)?;

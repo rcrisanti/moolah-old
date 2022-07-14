@@ -12,23 +12,12 @@ use yew::prelude::*;
 use crate::{
     components::AppContext,
     services::{replace_pattern, requests::fully_qualified_path},
+    InternalResponseError,
 };
 
 #[derive(Properties, PartialEq)]
 pub struct NewPredictionProps {
-    pub oncreate: Callback<PredictionWithDeltas>,
-}
-
-#[derive(Debug, thiserror::Error, Clone)]
-pub enum NewPredictionError {
-    #[error("unauthorized")]
-    Unauthorized,
-
-    #[error("error receiving new prediction from response: {0}")]
-    ResponsePredictionError(String),
-
-    #[error("{0}")]
-    Other(String),
+    pub oncreate: Callback<()>,
 }
 
 pub enum NewPredictionMsg {
@@ -36,15 +25,15 @@ pub enum NewPredictionMsg {
     Open(bool),
     PredictionNameChanged(String),
     Submitted,
-    FailedToPost(NewPredictionError),
-    ReceivedResponse(Result<PredictionWithDeltas, NewPredictionError>),
+    FailedToPost(InternalResponseError),
+    ReceivedResponse(Result<PredictionWithDeltas, InternalResponseError>),
 }
 
 pub struct NewPrediction {
     app_context: AppContext,
     prediction_name: String,
     client: Client,
-    response_error: Option<NewPredictionError>,
+    response_error: Option<InternalResponseError>,
     open: bool,
 }
 
@@ -125,17 +114,16 @@ impl Component for NewPrediction {
                 } else {
                     ctx.link()
                         .callback(|_| {
-                            NewPredictionMsg::FailedToPost(NewPredictionError::Unauthorized)
+                            NewPredictionMsg::FailedToPost(InternalResponseError::Unauthorized)
                         })
                         .emit(0)
                 }
             }
             NewPredictionMsg::ReceivedResponse(response) => match response {
-                Ok(new_pred) => {
+                Ok(_) => {
                     log::info!("successfully received response after posting new prediction");
-                    ctx.props().oncreate.emit(new_pred);
+                    ctx.props().oncreate.emit(());
                     self.open = false;
-                    // self.app_context.borrow_mut().force_reload_predictions();
                 }
                 Err(err) => self.response_error = Some(err),
             },
@@ -182,19 +170,26 @@ impl NewPrediction {
                             .json::<PredictionWithDeltas>()
                             .await
                             .map_err(|err| {
-                                NewPredictionError::ResponsePredictionError(err.to_string())
+                                InternalResponseError::ResponseAwaitError("new prediction", err.to_string())
                             })
                     }
-                    StatusCode::UNAUTHORIZED => Err(NewPredictionError::Unauthorized),
-                    _ => Err(NewPredictionError::Other(
+                    StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
+                    _ => {
                         response
                             .text()
                             .await
-                            .unwrap_or("could not get body text".into()),
-                    )),
+                            .map_or(Err(InternalResponseError::Other("could not get body text".into())), |err_text| {
+                                if err_text =="Diesel error: duplicate key value violates unique constraint \"predictions_username_name_key\"" {
+                                    log::trace!("matched error");
+                                    Err(InternalResponseError::UniqueConstraintViolation("prediction", "name".to_string()))
+                                } else {
+                                    Err(InternalResponseError::ResponseAwaitError("error text body", err_text))
+                                }
+                            })
+                    }
                 }
             } else {
-                Err(NewPredictionError::Other(
+                Err(InternalResponseError::Other(
                     "could not post new prediction".into(),
                 ))
             };

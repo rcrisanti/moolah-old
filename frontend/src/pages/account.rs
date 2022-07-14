@@ -5,28 +5,19 @@ use reqwest::StatusCode;
 use shared::models::UserAccount;
 use shared::routes;
 use std::sync::Arc;
-use thiserror::Error;
 use yew::prelude::*;
 
 use crate::components::AppContext;
 use crate::components::{Header, Loading, Unauthorized};
 use crate::services::requests::{fully_qualified_path, replace_pattern};
+use crate::InternalResponseError;
 
 const PATH_PATTERN: &str = r"\{username\}";
 const DATETIME_FORMAT: &str = "%a %h %d %Y %r %Z";
 
-#[derive(Error, Debug, Clone)]
-pub enum AccountError {
-    #[error("Not logged in")]
-    Unauthorized,
-
-    #[error("{0}")]
-    Other(String),
-}
-
 pub enum AccountMsg {
     AppContextUpdated(AppContext),
-    ReceivedResponse(Result<UserAccount, AccountError>),
+    ReceivedResponse(Result<UserAccount, InternalResponseError>),
     ResetPassword,
     DeleteAccountInitiated,
     DeleteAccountConfirmed,
@@ -36,7 +27,7 @@ pub enum AccountMsg {
 
 pub struct Account {
     app_context: AppContext,
-    account: Option<Result<UserAccount, AccountError>>,
+    account: Option<Result<UserAccount, InternalResponseError>>,
     client: Client,
     delete_account_err: Option<String>,
 }
@@ -65,7 +56,9 @@ impl Component for Account {
                 self.get_account(ctx, &username)
             } else {
                 ctx.link()
-                    .callback(|_| AccountMsg::ReceivedResponse(Err(AccountError::Unauthorized)))
+                    .callback(|_| {
+                        AccountMsg::ReceivedResponse(Err(InternalResponseError::Unauthorized))
+                    })
                     .emit(0)
             }
         }
@@ -138,9 +131,8 @@ impl Component for Account {
             }
             AccountMsg::DeleteAccountError(err) => self.delete_account_err = Some(err),
             AccountMsg::DeleteAccountSuccessful => {
-                // identity_forget();
                 self.app_context.borrow_mut().logout();
-                self.account = Some(Err(AccountError::Unauthorized));
+                self.account = Some(Err(InternalResponseError::Unauthorized));
             }
             AccountMsg::AppContextUpdated(context) => {
                 if context.borrow().current_username()
@@ -256,8 +248,8 @@ impl Account {
                         .expect("could not get account from response");
                     Ok(account)
                 }
-                StatusCode::UNAUTHORIZED => Err(AccountError::Unauthorized),
-                _ => Err(AccountError::Other(
+                StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
+                _ => Err(InternalResponseError::Other(
                     response.text().await.expect("could not get body text"),
                 )),
             };
