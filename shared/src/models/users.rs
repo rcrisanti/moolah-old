@@ -38,7 +38,7 @@ impl User {
     }
 }
 
-#[derive(Debug, Deserialize, Insertable)]
+#[derive(Debug, Deserialize, Serialize, Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
     pub username: String,
@@ -71,7 +71,7 @@ impl TryFrom<UserRegisterForm> for NewUser {
     }
 }
 
-#[derive(Debug, Deserialize, Validate, Serialize)]
+#[derive(Debug, Validate)]
 pub struct UserRegisterForm {
     #[validate(
         length(min = 4, max = 18, message = "username should be 4-18 characters"),

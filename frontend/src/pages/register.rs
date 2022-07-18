@@ -1,10 +1,12 @@
 use reqwest::Client;
+use shared::models::NewUser;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::components::Header;
+use crate::errors::MoolahFrontendError;
 use crate::requests::{fully_qualified_path, Requester, ResponseAction};
 use crate::ResponseResult;
 use crate::{app::Route, components::AppContext};
@@ -18,6 +20,7 @@ pub enum RegisterMsg {
     PasswordConfirmChanged(String),
     Submitted,
     ResponseReceived(ResponseResult<Route>),
+    FormValidationErrorReceived(MoolahFrontendError),
 }
 
 pub struct Register {
@@ -27,6 +30,7 @@ pub struct Register {
     password: String,
     password_confirm: String,
     response: Option<ResponseResult<Route>>,
+    form_validation_error: Option<MoolahFrontendError>,
 }
 
 impl Component for Register {
@@ -46,6 +50,7 @@ impl Component for Register {
             password: String::new(),
             password_confirm: String::new(),
             response: None,
+            form_validation_error: None,
         }
     }
 
@@ -91,6 +96,16 @@ impl Component for Register {
 
                 {
                     if let Some(Err(err)) = &self.response {
+                        html! {
+                            <p>{ err }</p>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+
+                {
+                    if let Some(err) = &self.form_validation_error {
                         html! {
                             <p>{ err }</p>
                         }
@@ -148,13 +163,24 @@ impl Component for Register {
                     self.password.clone(),
                     self.password_confirm.clone(),
                 );
+                let new_user = NewUser::try_from(user_form);
+
+                if let Err(err) = new_user {
+                    ctx.link()
+                        .send_message(RegisterMsg::FormValidationErrorReceived(
+                            MoolahFrontendError::UserFormValidationError(err.to_string()),
+                        ));
+                    return true;
+                }
 
                 let path = fully_qualified_path(routes::REGISTER.into())
                     .expect("could not build fully qualified path");
 
                 let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let request = Client::new().put(path).json(&user_form);
+                    let request = Client::new().put(path).json(&new_user.expect(
+                        "should ever be reached - error creating NewUser from UserRegistrationForm",
+                    ));
                     let on_ok = ResponseAction::from(|_| Ok(Route::Home));
                     let requester = Requester::default();
                     let response = requester.make(request, on_ok).await;
@@ -172,6 +198,7 @@ impl Component for Register {
                 }
                 self.response = Some(response)
             }
+            RegisterMsg::FormValidationErrorReceived(err) => self.form_validation_error = Some(err),
         }
         true
     }

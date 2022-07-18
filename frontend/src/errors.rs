@@ -13,6 +13,9 @@ pub enum MoolahFrontendError {
 
     #[error("error with local or session web storage")]
     StorageError(#[from] gloo_storage::errors::StorageError),
+
+    #[error("error validating form: {0}")]
+    UserFormValidationError(String),
 }
 
 #[derive(Error, Debug, Clone)]
