@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use shared::{
     models::{predictions::PredictionWithDeltas, Prediction},
     path_patterns, routes,
@@ -8,11 +8,8 @@ use shared::{
 use stylist::{css, YieldStyle};
 use yew::prelude::*;
 
-use crate::{
-    components::AppContext,
-    services::{replace_pattern, requests::fully_qualified_path},
-    InternalResponseError,
-};
+use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
+use crate::{components::AppContext, ResponseResult};
 
 #[derive(Properties, PartialEq)]
 pub struct PredictionPanelProps {
@@ -23,13 +20,13 @@ pub struct PredictionPanelProps {
 pub enum PredictionPanelMsg {
     AppContextUpdated(AppContext),
     DeletePrediction,
-    ReceivedResponse(Result<(), InternalResponseError>),
+    ReceivedResponse(ResponseResult<()>),
 }
 
 pub struct PredictionPanel {
     app_context: AppContext,
     client: Client,
-    response: Option<Result<(), InternalResponseError>>,
+    response: Option<ResponseResult<()>>,
 }
 
 impl Component for PredictionPanel {
@@ -82,7 +79,7 @@ impl Component for PredictionPanel {
                 self.delete_prediction_if_logged_in(ctx);
                 ctx.props().ondelete.emit(());
             }
-            PredictionPanelMsg::AppContextUpdated(context) => todo!(),
+            PredictionPanelMsg::AppContextUpdated(_) => todo!(),
             PredictionPanelMsg::ReceivedResponse(response) => self.response = Some(response),
         }
         true
@@ -171,36 +168,15 @@ impl PredictionPanel {
         let prediction: Prediction = ctx.props().prediction.clone().into();
 
         let client = Arc::new(self.client.clone());
-        let scope = Arc::new(ctx.link().clone());
+        let scope = ctx.link().clone();
         wasm_bindgen_futures::spawn_local(async move {
             log::debug!("deleting prediction: {:?}", prediction);
-            let response = client.delete(path).json(&prediction).send().await.ok();
+            let request = client.delete(path).json(&prediction);
+            let on_ok = ResponseAction::from(|_| Ok(()));
+            let requester = Requester::default();
+            let response = requester.make(request, on_ok).await;
 
-            let response = if let Some(response) = response {
-                match response.status() {
-                    StatusCode::OK => Ok(()),
-                    StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
-                    _ => response.text().await.map_or(
-                        Err(InternalResponseError::Other(
-                            "could not get body text".into(),
-                        )),
-                        |err_text| {
-                            Err(InternalResponseError::ResponseAwaitError(
-                                "error text body",
-                                err_text,
-                            ))
-                        },
-                    ),
-                }
-            } else {
-                Err(InternalResponseError::Other(
-                    "could not post new prediction".into(),
-                ))
-            };
-
-            scope
-                .callback(move |_| PredictionPanelMsg::ReceivedResponse(response.clone()))
-                .emit(0);
+            scope.send_message(PredictionPanelMsg::ReceivedResponse(response.clone()));
         });
     }
 }

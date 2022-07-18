@@ -1,24 +1,25 @@
 use std::sync::Arc;
 
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use shared::models::predictions::PredictionWithDeltas;
 use shared::{path_patterns, routes};
+use yew::context::ContextHandle;
 use yew::prelude::*;
 
 use crate::components::{AppContext, Header, Loading, NewPrediction, PredictionPanel};
-use crate::services::replace_pattern;
-use crate::services::requests::fully_qualified_path;
-use crate::InternalResponseError;
+use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
+use crate::{InternalResponseError, ResponseResult};
 
 pub enum HomeMsg {
     AppContextUpdated(AppContext),
-    ReceivedResponse(Result<Vec<PredictionWithDeltas>, InternalResponseError>),
+    ReceivedResponse(ResponseResult<Vec<PredictionWithDeltas>>),
     DataUpdateRequired,
 }
 
 pub struct Home {
     app_context: AppContext,
-    prediction_response: Option<Result<Vec<PredictionWithDeltas>, InternalResponseError>>,
+    _context_listener: ContextHandle<AppContext>,
+    prediction_response: Option<ResponseResult<Vec<PredictionWithDeltas>>>,
     client: Client,
 }
 
@@ -27,13 +28,14 @@ impl Component for Home {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (app_context, _) = ctx
+        let (app_context, _context_listener) = ctx
             .link()
             .context(ctx.link().callback(HomeMsg::AppContextUpdated))
             .expect("no AppContext provided");
 
         Home {
             app_context,
+            _context_listener,
             prediction_response: None,
             client: Client::new(),
         }
@@ -73,16 +75,17 @@ impl Component for Home {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             HomeMsg::ReceivedResponse(response) => {
-                log::trace!("received response");
+                log::trace!("received response: {:?} {:?}", response, self.app_context);
                 self.prediction_response = Some(response)
             }
             HomeMsg::AppContextUpdated(context) => {
-                if context.borrow().current_username()
-                    == self.app_context.borrow().current_username()
-                {
-                    // self.app_context = context;
-                    return false;
-                }
+                self.app_context = context;
+                // if context.borrow().current_username()
+                //     == self.app_context.borrow().current_username()
+                // {
+                //     // self.app_context = context;
+                //     return false;
+                // }
             }
             HomeMsg::DataUpdateRequired => self.get_predictions_if_logged_in(ctx),
         }
@@ -127,9 +130,9 @@ impl Home {
         if let Some(username) = self.app_context.borrow().current_username() {
             self.get_predictions(ctx, &username)
         } else {
-            ctx.link()
-                .callback(|_| HomeMsg::ReceivedResponse(Err(InternalResponseError::Unauthorized)))
-                .emit(0)
+            ctx.link().send_message(HomeMsg::ReceivedResponse(Err(
+                InternalResponseError::Unauthorized,
+            )))
         }
     }
 
@@ -141,31 +144,27 @@ impl Home {
         .expect("could not create path");
 
         let client = Arc::new(self.client.clone());
-        let scope = Arc::new(ctx.link().clone());
+        let scope = ctx.link().clone();
         wasm_bindgen_futures::spawn_local(async move {
-            let response = client
-                .get(path)
-                .send()
-                .await
-                .expect("could not get predictions");
-
-            let response_preds = match response.status() {
-                StatusCode::OK => {
-                    let preds = response
+            let request = client.get(path);
+            let on_ok = ResponseAction::new(Box::new(|response| {
+                Box::pin(async {
+                    response
                         .json::<Vec<PredictionWithDeltas>>()
                         .await
-                        .expect("could not get predictions from response");
-                    Ok(preds)
-                }
-                StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
-                _ => Err(InternalResponseError::Other(
-                    response.text().await.expect("could not get body text"),
-                )),
-            };
+                        .map_err(|err| {
+                            InternalResponseError::ResponseAwaitError(
+                                "predictions",
+                                err.to_string(),
+                            )
+                        })
+                })
+            }));
 
-            scope
-                .callback(move |_| HomeMsg::ReceivedResponse(response_preds.clone()))
-                .emit(0);
+            let requester = Requester::default();
+            let response = requester.make(request, on_ok).await;
+
+            scope.send_message(HomeMsg::ReceivedResponse(response));
         });
     }
 }

@@ -9,7 +9,7 @@ use yew::prelude::*;
 
 use crate::components::AppContext;
 use crate::components::{Header, Loading, Unauthorized};
-use crate::services::requests::{fully_qualified_path, replace_pattern};
+use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
 use crate::InternalResponseError;
 
 const PATH_PATTERN: &str = r"\{username\}";
@@ -230,33 +230,24 @@ impl Account {
         )
         .expect("could not create path");
 
-        let client = Client::new();
-        let scope = Arc::new(ctx.link().clone());
-        let arc_client = Arc::new(client.clone());
+        let scope = ctx.link().clone();
+        let client = Arc::new(Client::new());
         wasm_bindgen_futures::spawn_local(async move {
-            let response = arc_client
-                .get(path)
-                .send()
-                .await
-                .expect("could not get account");
-
-            let response_account = match response.status() {
-                StatusCode::OK => {
+            let request = client.get(path);
+            let on_ok = ResponseAction::new(Box::new(|response| {
+                Box::pin(async {
                     let account: UserAccount = response
                         .json()
                         .await
                         .expect("could not get account from response");
                     Ok(account)
-                }
-                StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
-                _ => Err(InternalResponseError::Other(
-                    response.text().await.expect("could not get body text"),
-                )),
-            };
+                })
+            }));
 
-            scope
-                .callback(move |_| AccountMsg::ReceivedResponse(response_account.clone()))
-                .emit(0);
+            let requester = Requester::default();
+            let response = requester.make(request, on_ok).await;
+
+            scope.send_message(AccountMsg::ReceivedResponse(response));
         });
     }
 }

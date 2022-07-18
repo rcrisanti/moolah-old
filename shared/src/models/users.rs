@@ -26,11 +26,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn verify_user(
-        &self,
-        username: String,
-        password: String,
-    ) -> Result<bool, MoolahSharedError> {
+    pub fn verify_user(&self, username: &str, password: &str) -> Result<bool, MoolahSharedError> {
         if username.to_lowercase() != self.username.to_lowercase() {
             return Ok(false);
         }
@@ -118,7 +114,7 @@ impl UserRegisterForm {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct UserLoginRequestForm {
     pub username: String,
 }

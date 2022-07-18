@@ -1,13 +1,12 @@
-use reqwest::{Client, StatusCode};
-use std::sync::Arc;
+use reqwest::Client;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::components::Header;
-use crate::errors::InternalResponseError;
-use crate::services::requests::fully_qualified_path;
+use crate::requests::{fully_qualified_path, Requester, ResponseAction};
+use crate::ResponseResult;
 use crate::{app::Route, components::AppContext};
 use shared::{models::UserRegisterForm, routes};
 
@@ -18,8 +17,7 @@ pub enum RegisterMsg {
     PasswordChanged(String),
     PasswordConfirmChanged(String),
     Submitted,
-    SuccessfulLogin(Route),
-    Error(InternalResponseError),
+    ResponseReceived(ResponseResult<Route>),
 }
 
 pub struct Register {
@@ -28,8 +26,7 @@ pub struct Register {
     email: String,
     password: String,
     password_confirm: String,
-    redirect_to: Option<Route>,
-    error_msg: Option<InternalResponseError>,
+    response: Option<ResponseResult<Route>>,
 }
 
 impl Component for Register {
@@ -48,13 +45,12 @@ impl Component for Register {
             email: String::new(),
             password: String::new(),
             password_confirm: String::new(),
-            redirect_to: None,
-            error_msg: None,
+            response: None,
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if let Some(redirect_to) = &self.redirect_to {
+        if let Some(Ok(redirect_to)) = &self.response {
             return html! {
                 <Redirect<Route> to={redirect_to.clone()} />
             };
@@ -92,6 +88,16 @@ impl Component for Register {
         html! {
             <>
                 <Header heading="register" title="register" />
+
+                {
+                    if let Some(Err(err)) = &self.response {
+                        html! {
+                            <p>{ err }</p>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
 
                 <form {onsubmit}>
                     <div>
@@ -146,39 +152,23 @@ impl Component for Register {
                 let path = fully_qualified_path(routes::REGISTER.into())
                     .expect("could not build fully qualified path");
 
-                let scope = Arc::new(ctx.link().clone());
-
+                let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let response = Client::new()
-                        .post(path)
-                        .json(&user_form)
-                        .send()
-                        .await
-                        .expect("could not post user form");
+                    let request = Client::new().post(path).json(&user_form);
+                    let on_ok = ResponseAction::from(|_| Ok(Route::Home));
+                    let requester = Requester::default();
+                    let response = requester.make(request, on_ok).await;
 
-                    scope
-                        .callback(move |_| match response.status() {
-                            StatusCode::OK => {
-                                log::debug!("successfully submitted form");
-                                RegisterMsg::SuccessfulLogin(Route::Home)
-                            }
-                            StatusCode::INTERNAL_SERVER_ERROR => RegisterMsg::Error(
-                                InternalResponseError::Other("registration error".to_string()),
-                            ),
-                            _ => RegisterMsg::Error(InternalResponseError::Other(format!(
-                                "unknown response status code {}",
-                                response.status()
-                            ))),
-                        })
-                        .emit(0);
+                    scope.send_message(RegisterMsg::ResponseReceived(response));
                 });
             }
-            RegisterMsg::SuccessfulLogin(redirect_page) => {
-                self.app_context.borrow_mut().login(self.username.clone());
-                self.redirect_to = Some(redirect_page)
-            }
-            RegisterMsg::Error(err) => self.error_msg = Some(err),
             RegisterMsg::AppContextUpdated(context) => self.app_context = context,
+            RegisterMsg::ResponseReceived(response) => {
+                if response.is_ok() {
+                    self.app_context.borrow_mut().login(self.username.clone());
+                }
+                self.response = Some(response)
+            }
         }
         true
     }

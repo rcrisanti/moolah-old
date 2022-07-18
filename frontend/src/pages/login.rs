@@ -1,9 +1,7 @@
-use std::fmt::Display;
-use std::sync::Arc;
-
 use reqwest::{Client, StatusCode};
 use shared::models::{User, UserLoginRequestForm};
 use shared::routes;
+use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -11,38 +9,24 @@ use yew_router::prelude::*;
 
 use crate::app::Route;
 use crate::components::{AppContext, Header};
-use crate::services::requests::fully_qualified_path;
+use crate::errors::InternalResponseError;
+use crate::requests::{fully_qualified_path, Requester, ResponseAction};
+use crate::ResponseResult;
 
 pub enum LoginMsg {
     AppContextUpdated(AppContext),
     UsernameChanged(String),
     PasswordChanged(String),
     Submitted,
-    SuccessfulLogin(Route),
-    Error(LoginError),
-}
-
-#[derive(Clone)]
-pub enum LoginError {
-    IncorrectCredentials,
-    Other(String),
-}
-
-impl Display for LoginError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::IncorrectCredentials => write!(f, "incorrect credentials"),
-            Self::Other(msg) => write!(f, "{}", msg),
-        }
-    }
+    ResponseReceived(ResponseResult<Route>),
 }
 
 pub struct Login {
     app_context: AppContext,
     username: String,
     password: String,
-    redirect_to: Option<Route>,
-    error_msg: Option<LoginError>,
+    client: Client,
+    response: Option<ResponseResult<Route>>,
 }
 
 impl Component for Login {
@@ -59,13 +43,13 @@ impl Component for Login {
             app_context,
             username: String::new(),
             password: String::new(),
-            redirect_to: None,
-            error_msg: None,
+            client: Client::new(),
+            response: None,
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if let Some(redirect_to) = &self.redirect_to {
+        if let Some(Ok(redirect_to)) = &self.response {
             return html! {
                 <Redirect<Route> to={redirect_to.clone()} />
             };
@@ -94,10 +78,16 @@ impl Component for Login {
 
                 <form {onsubmit}>
                     {
-                        if let Some(error_msg) = self.error_msg.clone() {
-                            html! {
-                                <p>{ format!("error: {}", error_msg) }</p>
+                        if let Some(Err(error_msg)) = &self.response {
+                            match error_msg {
+                                InternalResponseError::Unauthorized => html! {
+                                    <p>{ "incorrect credentials" }</p>
+                                },
+                                _ => html! {
+                                    <p>{ error_msg }</p>
+                                },
                             }
+
                         } else {
                             html! { <></> }
                         }
@@ -133,90 +123,69 @@ impl Component for Login {
                 let path = fully_qualified_path(routes::LOGIN_REQUEST_PASSWORD.into())
                     .expect("could not build fully qualified path");
 
-                let scope = Arc::new(ctx.link().clone());
+                let scope = ctx.link().clone();
+                let client = Arc::new(self.client.clone());
                 let password = self.password.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let client = Client::new();
-                    let response = client
-                        .post(path)
-                        .json(&user_form)
-                        .send()
-                        .await
-                        .expect("could not post user form");
+                    let response = client.post(path).json(&user_form).send().await.ok();
 
-                    match response.status() {
-                        StatusCode::OK => {
-                            let user: User = response
-                                .json()
-                                .await
-                                .expect("could not retrieve user from response");
-
-                            if user
-                                .verify_user(user_form.username, password)
-                                .expect("could not verify user")
-                            {
-                                let response = client
-                                    .post(fully_qualified_path(routes::LOGIN.into()).expect(
-                                        "could not build fully qualified path for second request",
-                                    ))
-                                    .json(&user)
-                                    .send()
+                    let response = if let Some(response) = response {
+                        match response.status() {
+                            StatusCode::OK => {
+                                let user: User = response
+                                    .json()
                                     .await
-                                    .expect("could not post user");
+                                    .expect("could not retrieve user from response");
 
-                                if response.status() == StatusCode::OK {
-                                    scope
-                                        .callback(|_| LoginMsg::SuccessfulLogin(Route::Home))
-                                        .emit(0);
+                                if user
+                                    .verify_user(&user_form.username, &password)
+                                    .expect("could not verify user")
+                                {
+                                    login_user(client, user).await
                                 } else {
-                                    scope
-                                        .callback(|_| {
-                                            LoginMsg::Error(LoginError::IncorrectCredentials)
-                                        })
-                                        .emit(0);
+                                    Err(InternalResponseError::Unauthorized)
                                 }
-                            } else {
-                                scope
-                                    .callback(|_| LoginMsg::Error(LoginError::IncorrectCredentials))
-                                    .emit(0);
                             }
-                        }
-                        StatusCode::INTERNAL_SERVER_ERROR => {
-                            scope
-                                .callback(|_| {
-                                    LoginMsg::Error(LoginError::Other(
-                                        "username does not exist".to_string(),
+                            _ => response.text().await.map_or(
+                                Err(InternalResponseError::Other(
+                                    "could not get body text".into(),
+                                )),
+                                |err_text| {
+                                    Err(InternalResponseError::ResponseAwaitError(
+                                        "error text body",
+                                        err_text,
                                     ))
-                                })
-                                .emit(0);
+                                },
+                            ),
                         }
-                        _ => {
-                            scope
-                                .callback(move |_| {
-                                    LoginMsg::Error(LoginError::Other(format!(
-                                        "unknown response status code {}",
-                                        response.status()
-                                    )))
-                                })
-                                .emit(0);
-                        }
+                    } else {
+                        Err(InternalResponseError::Other(
+                            "could not post login credentials".into(),
+                        ))
                     };
-                });
+
+                    scope.send_message(LoginMsg::ResponseReceived(response));
+                })
             }
-            LoginMsg::SuccessfulLogin(redirect_page) => {
-                self.app_context.borrow_mut().login(self.username.clone());
-                self.redirect_to = Some(redirect_page)
-            }
-            LoginMsg::Error(err) => self.error_msg = Some(err),
-            LoginMsg::AppContextUpdated(context) => {
-                if context.borrow().current_username()
-                    == self.app_context.borrow().current_username()
-                {
-                    // self.app_context = context;
-                    return false;
+            LoginMsg::AppContextUpdated(_) => todo!(),
+            LoginMsg::ResponseReceived(response) => {
+                if response.is_ok() {
+                    self.app_context.borrow_mut().login(self.username.clone());
                 }
+
+                self.response = Some(response);
             }
         }
         true
     }
+}
+
+async fn login_user(client: Arc<Client>, user: User) -> ResponseResult<Route> {
+    let path = fully_qualified_path(routes::LOGIN.into())
+        .expect("could not build fully qualified path for second request");
+    let request = client.post(path).json(&user);
+    let on_ok = ResponseAction::new(Box::new(|_| Box::pin(async move { Ok(Route::Home) })));
+
+    let requester = Requester::default();
+    requester.make(request, on_ok).await
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use shared::{
     models::{self, PredictionWithDeltas},
     path_patterns, routes,
@@ -11,8 +11,8 @@ use yew::prelude::*;
 
 use crate::{
     components::AppContext,
-    services::{replace_pattern, requests::fully_qualified_path},
-    InternalResponseError,
+    requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction},
+    InternalResponseError, ResponseResult,
 };
 
 #[derive(Properties, PartialEq)]
@@ -26,7 +26,7 @@ pub enum NewPredictionMsg {
     PredictionNameChanged(String),
     Submitted,
     FailedToPost(InternalResponseError),
-    ReceivedResponse(Result<PredictionWithDeltas, InternalResponseError>),
+    ReceivedResponse(ResponseResult<PredictionWithDeltas>),
 }
 
 pub struct NewPrediction {
@@ -128,14 +128,7 @@ impl Component for NewPrediction {
                 Err(err) => self.response_error = Some(err),
             },
             NewPredictionMsg::Open(open) => self.open = open,
-            NewPredictionMsg::AppContextUpdated(context) => {
-                if context.borrow().current_username()
-                    == self.app_context.borrow().current_username()
-                {
-                    // self.app_context = context;
-                    return false;
-                }
-            }
+            NewPredictionMsg::AppContextUpdated(_) => todo!(),
             NewPredictionMsg::FailedToPost(reason) => self.response_error = Some(reason),
         }
         true
@@ -158,45 +151,46 @@ impl NewPrediction {
             models::NewPrediction::new(username.into(), self.prediction_name.clone());
 
         let client = Arc::new(self.client.clone());
-        let scope = Arc::new(ctx.link().clone());
+        let scope = ctx.link().clone();
         wasm_bindgen_futures::spawn_local(async move {
             log::debug!("posting new prediction: {:?}", new_prediction);
-            let response = client.post(path).json(&new_prediction).send().await.ok();
 
-            let response = if let Some(response) = response {
-                match response.status() {
-                    StatusCode::OK => {
-                        response
-                            .json::<PredictionWithDeltas>()
-                            .await
-                            .map_err(|err| {
-                                InternalResponseError::ResponseAwaitError("new prediction", err.to_string())
-                            })
-                    }
-                    StatusCode::UNAUTHORIZED => Err(InternalResponseError::Unauthorized),
-                    _ => {
-                        response
-                            .text()
-                            .await
-                            .map_or(Err(InternalResponseError::Other("could not get body text".into())), |err_text| {
-                                if err_text =="Diesel error: duplicate key value violates unique constraint \"predictions_username_name_key\"" {
-                                    log::trace!("matched error");
-                                    Err(InternalResponseError::UniqueConstraintViolation("prediction", "name".to_string()))
-                                } else {
-                                    Err(InternalResponseError::ResponseAwaitError("error text body", err_text))
-                                }
-                            })
-                    }
-                }
-            } else {
-                Err(InternalResponseError::Other(
-                    "could not post new prediction".into(),
-                ))
+            let request = client.post(path).json(&new_prediction);
+            let on_ok = ResponseAction::new(Box::new(|response| {
+                Box::pin(async {
+                    response
+                        .json::<PredictionWithDeltas>()
+                        .await
+                        .map_err(|err| {
+                            InternalResponseError::ResponseAwaitError(
+                                "new prediction",
+                                err.to_string(),
+                            )
+                        })
+                })
+            }));
+            let on_fallthrough = ResponseAction::new(Box::new(|response| {
+                Box::pin(async {
+                    response
+                        .text()
+                        .await
+                        .map_or(Err(InternalResponseError::Other("could not get body text".into())), |err_text| {
+                            if err_text =="Diesel error: duplicate key value violates unique constraint \"predictions_username_name_key\"" {
+                                log::trace!("matched error");
+                                Err(InternalResponseError::UniqueConstraintViolation("prediction", "name".to_string()))
+                            } else {
+                                Err(InternalResponseError::ResponseAwaitError("error text body", err_text))
+                            }
+                        })
+                })
+            }));
+            let requester = Requester {
+                on_fallthrough,
+                ..Default::default()
             };
+            let response = requester.make(request, on_ok).await;
 
-            scope
-                .callback(move |_| NewPredictionMsg::ReceivedResponse(response.clone()))
-                .emit(0);
+            scope.send_message(NewPredictionMsg::ReceivedResponse(response));
         });
     }
 }
