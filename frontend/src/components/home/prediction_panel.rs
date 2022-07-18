@@ -148,7 +148,7 @@ impl PredictionPanel {
 
 impl PredictionPanel {
     fn delete_prediction_if_logged_in(&self, ctx: &Context<Self>) {
-        if let Some(username) = self.app_context.borrow().current_username() {
+        if let Some(username) = self.app_context.borrow_mut().username() {
             self.delete_prediction(ctx, &username);
         } else {
         }
@@ -156,7 +156,7 @@ impl PredictionPanel {
 
     fn delete_prediction(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
-            replace_pattern(
+            &replace_pattern(
                 routes::PREDICTIONS,
                 path_patterns::PREDICTIONS,
                 username.into(),

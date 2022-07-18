@@ -8,7 +8,7 @@ use regex::Regex;
 
 use super::MoolahFrontendError;
 
-fn join_path(base_url: String, relative_url: String) -> Result<String, MoolahFrontendError> {
+fn join_path(base_url: &str, relative_url: &str) -> Result<String, MoolahFrontendError> {
     match (base_url.chars().last(), relative_url.chars().next()) {
         (Some('/'), Some('/')) => {
             let mut rel_chars = relative_url.chars();
@@ -22,9 +22,9 @@ fn join_path(base_url: String, relative_url: String) -> Result<String, MoolahFro
     }
 }
 
-pub fn fully_qualified_path(relative_url: String) -> Result<String, MoolahFrontendError> {
+pub fn fully_qualified_path(relative_url: &str) -> Result<String, MoolahFrontendError> {
     match web_sys::window() {
-        Some(window) => join_path(window.origin(), relative_url),
+        Some(window) => join_path(&window.origin(), relative_url),
         None => Err(MoolahFrontendError::WebSysError),
     }
 }

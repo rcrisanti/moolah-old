@@ -78,15 +78,7 @@ impl Component for Home {
                 log::trace!("received response: {:?} {:?}", response, self.app_context);
                 self.prediction_response = Some(response)
             }
-            HomeMsg::AppContextUpdated(context) => {
-                self.app_context = context;
-                // if context.borrow().current_username()
-                //     == self.app_context.borrow().current_username()
-                // {
-                //     // self.app_context = context;
-                //     return false;
-                // }
-            }
+            HomeMsg::AppContextUpdated(_context) => {}
             HomeMsg::DataUpdateRequired => self.get_predictions_if_logged_in(ctx),
         }
         true
@@ -127,7 +119,7 @@ impl Home {
 
 impl Home {
     fn get_predictions_if_logged_in(&self, ctx: &Context<Self>) {
-        if let Some(username) = self.app_context.borrow().current_username() {
+        if let Some(username) = self.app_context.borrow_mut().username() {
             self.get_predictions(ctx, &username)
         } else {
             ctx.link().send_message(HomeMsg::ReceivedResponse(Err(
@@ -138,7 +130,7 @@ impl Home {
 
     fn get_predictions(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
-            replace_pattern(routes::PREDICTIONS, path_patterns::PREDICTIONS, username)
+            &replace_pattern(routes::PREDICTIONS, path_patterns::PREDICTIONS, username)
                 .expect("could not replace pattern in route"),
         )
         .expect("could not create path");

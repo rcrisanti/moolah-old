@@ -94,11 +94,11 @@ impl Component for Login {
                     }
                     <div>
                         <label for="username">{ "username:" }</label>
-                        <input id="username" type="text" placeholder="username" onchange={onchange_username}/>
+                        <input id="username" type="text" placeholder="username" onchange={onchange_username} required=true/>
                     </div>
                     <div>
                         <label for="password">{ "password:" }</label>
-                        <input id="password" type="password" placeholder="password" onchange={onchange_password}/>
+                        <input id="password" type="password" placeholder="password" onchange={onchange_password} required=true/>
                     </div>
                     <input type="submit" value="login"/>
                 </form>
@@ -170,7 +170,10 @@ impl Component for Login {
             LoginMsg::AppContextUpdated(_) => todo!(),
             LoginMsg::ResponseReceived(response) => {
                 if response.is_ok() {
-                    self.app_context.borrow_mut().login(self.username.clone());
+                    self.app_context
+                        .borrow_mut()
+                        .login(self.username.clone())
+                        .expect("could not log in");
                 }
 
                 self.response = Some(response);

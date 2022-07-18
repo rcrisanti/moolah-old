@@ -52,7 +52,7 @@ impl Component for Account {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            if let Some(username) = self.app_context.borrow().current_username() {
+            if let Some(username) = self.app_context.borrow_mut().username() {
                 self.get_account(ctx, &username)
             } else {
                 ctx.link()
@@ -89,7 +89,7 @@ impl Component for Account {
             }
             AccountMsg::DeleteAccountConfirmed => {
                 let path = fully_qualified_path(
-                    replace_pattern(
+                    &replace_pattern(
                         routes::ACCOUNT,
                         PATH_PATTERN,
                         &self
@@ -135,9 +135,7 @@ impl Component for Account {
                 self.account = Some(Err(InternalResponseError::Unauthorized));
             }
             AccountMsg::AppContextUpdated(context) => {
-                if context.borrow().current_username()
-                    == self.app_context.borrow().current_username()
-                {
+                if context.borrow_mut().username() == self.app_context.borrow_mut().username() {
                     // self.app_context = context;
                     return false;
                 }
@@ -225,7 +223,7 @@ impl Account {
 impl Account {
     fn get_account(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
-            replace_pattern(routes::ACCOUNT, PATH_PATTERN, username)
+            &replace_pattern(routes::ACCOUNT, PATH_PATTERN, username)
                 .expect("could not replace pattern in route"),
         )
         .expect("could not create path");

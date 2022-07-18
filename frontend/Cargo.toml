@@ -15,9 +15,11 @@ reqwest = { version = "0.11", features = ["blocking", "json"] }
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 gloo-dialogs = "0.1"
+gloo-storage = "0.2"
 regex = "1.5"
 chrono = { version = "0.4", features = ["wasmbind"] }
 stylist = { version = "0.10", features = ["yew_integration"] }
 log = "0.4"
 wasm-logger = "0.2"
+console_error_panic_hook = "0.1.7"
 shared = { path = "../shared" }

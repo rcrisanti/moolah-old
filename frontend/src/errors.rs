@@ -2,14 +2,17 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MoolahFrontendError {
-    #[error("Could not create fully-qualified path")]
+    #[error("could not create fully-qualified path")]
     JoinPathError,
 
-    #[error("Could not get current window")]
+    #[error("could not get current window")]
     WebSysError,
 
-    #[error("Error compiling regex")]
+    #[error("error compiling regex")]
     RegexError(#[from] regex::Error),
+
+    #[error("error with local or session web storage")]
+    StorageError(#[from] gloo_storage::errors::StorageError),
 }
 
 #[derive(Error, Debug, Clone)]

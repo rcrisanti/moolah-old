@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use yew::prelude::*;
 use yew_router::prelude::*;
+extern crate console_error_panic_hook;
 
 use crate::components::{AppContext, ContextData, Footer};
 use crate::pages::{Account, Home, Login, Logout, Register};
@@ -40,14 +41,15 @@ fn switch(route: &Route) -> Html {
     }
 }
 
-pub struct App {}
+pub struct App;
 
 impl Component for App {
     type Message = ();
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        App {}
+        console_error_panic_hook::set_once();
+        App
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {

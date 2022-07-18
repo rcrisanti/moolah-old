@@ -36,7 +36,7 @@ impl Component for Logout {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if self.app_context.borrow().is_logged_in() {
+        if self.app_context.borrow_mut().is_logged_in() {
             ctx.link().callback(|_| LogoutMsg::Logout).emit(0);
         }
 

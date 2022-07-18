@@ -109,7 +109,7 @@ impl Component for NewPrediction {
                 self.prediction_name = name
             }
             NewPredictionMsg::Submitted => {
-                if let Some(username) = self.app_context.borrow().current_username() {
+                if let Some(username) = self.app_context.borrow_mut().username() {
                     self.post_prediction(ctx, &username)
                 } else {
                     ctx.link()
@@ -138,7 +138,7 @@ impl Component for NewPrediction {
 impl NewPrediction {
     fn post_prediction(&self, ctx: &Context<Self>, username: &str) {
         let path = fully_qualified_path(
-            replace_pattern(
+            &replace_pattern(
                 routes::PREDICTIONS,
                 path_patterns::PREDICTIONS,
                 username.into(),

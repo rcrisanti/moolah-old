@@ -29,9 +29,7 @@ impl Component for Header {
             .context(ctx.link().callback(HeaderMsg::AppContextUpdated))
             .expect("no AppContext provided");
 
-        Header {
-            app_context,
-        }
+        Header { app_context }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -39,7 +37,6 @@ impl Component for Header {
             Some(title) => format!("moolah | {}", title),
             None => "moolah".to_string(),
         };
-
 
         html! {
             <>
@@ -52,7 +49,7 @@ impl Component for Header {
                     <div style={"float:right;"}>
                         <Link<Route> to={Route::Home}>{ "home" }</Link<Route>>
                         {
-                            if self.app_context.borrow().is_logged_in() {
+                            if self.app_context.borrow_mut().is_logged_in() {
                                 html! {
                                     <>
                                         <Link<Route> to={Route::Account}>{ "account" }</Link<Route>>
@@ -78,7 +75,9 @@ impl Component for Header {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             HeaderMsg::AppContextUpdated(context) => {
-                if context.borrow().is_logged_in() == self.app_context.borrow().is_logged_in() {
+                if context.borrow_mut().is_logged_in()
+                    == self.app_context.borrow_mut().is_logged_in()
+                {
                     return false;
                 }
             }

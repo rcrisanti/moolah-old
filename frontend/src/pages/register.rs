@@ -165,7 +165,10 @@ impl Component for Register {
             RegisterMsg::AppContextUpdated(context) => self.app_context = context,
             RegisterMsg::ResponseReceived(response) => {
                 if response.is_ok() {
-                    self.app_context.borrow_mut().login(self.username.clone());
+                    self.app_context
+                        .borrow_mut()
+                        .login(self.username.clone())
+                        .expect("could not log in");
                 }
                 self.response = Some(response)
             }
