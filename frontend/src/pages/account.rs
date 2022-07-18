@@ -1,35 +1,36 @@
 use chrono::{DateTime, Local, Utc};
 use gloo_dialogs::confirm;
 use reqwest::Client;
-use reqwest::StatusCode;
 use shared::models::UserAccount;
 use shared::routes;
 use std::sync::Arc;
 use yew::prelude::*;
+use yew_router::components::Redirect;
 
+use crate::app::Route;
 use crate::components::AppContext;
 use crate::components::{Header, Loading, Unauthorized};
 use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
 use crate::InternalResponseError;
+use crate::ResponseResult;
 
 const PATH_PATTERN: &str = r"\{username\}";
 const DATETIME_FORMAT: &str = "%a %h %d %Y %r %Z";
 
 pub enum AccountMsg {
     AppContextUpdated(AppContext),
-    ReceivedResponse(Result<UserAccount, InternalResponseError>),
+    ReceivedResponse(ResponseResult<UserAccount>),
     ResetPassword,
     DeleteAccountInitiated,
     DeleteAccountConfirmed,
-    DeleteAccountSuccessful,
-    DeleteAccountError(String),
+    ReceivedDeleteAccountResponse(ResponseResult<Route>),
 }
 
 pub struct Account {
     app_context: AppContext,
-    account: Option<Result<UserAccount, InternalResponseError>>,
+    account: Option<ResponseResult<UserAccount>>,
     client: Client,
-    delete_account_err: Option<String>,
+    delete_response: Option<ResponseResult<Route>>,
 }
 
 impl Component for Account {
@@ -46,7 +47,7 @@ impl Component for Account {
             app_context,
             account: None,
             client: Client::new(),
-            delete_account_err: None,
+            delete_response: None,
         }
     }
 
@@ -65,10 +66,16 @@ impl Component for Account {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        match &self.account {
-            Some(Ok(_account)) => self.view_logged_in(ctx),
-            Some(Err(_err)) => self.view_not_logged_in(ctx),
-            None => self.view_loading(ctx),
+        if let Some(Ok(redirect_route)) = self.delete_response {
+            html! {
+                <Redirect<Route> to={redirect_route.clone()} />
+            }
+        } else {
+            match &self.account {
+                Some(Ok(_account)) => self.view_logged_in(ctx),
+                Some(Err(_err)) => self.view_not_logged_in(ctx),
+                None => self.view_loading(ctx),
+            }
         }
     }
 
@@ -82,9 +89,7 @@ impl Component for Account {
                 );
 
                 if delete_confirmed {
-                    ctx.link()
-                        .callback(|_| AccountMsg::DeleteAccountConfirmed)
-                        .emit(0);
+                    ctx.link().send_message(AccountMsg::DeleteAccountConfirmed);
                 }
             }
             AccountMsg::DeleteAccountConfirmed => {
@@ -106,40 +111,24 @@ impl Component for Account {
                 .expect("could not create path");
 
                 let client = Arc::new(self.client.clone());
-                let scope = Arc::new(ctx.link().clone());
+                let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let response = client
-                        .delete(path)
-                        .send()
-                        .await
-                        .expect("could not get account");
+                    let request = client.delete(path);
+                    let on_ok = ResponseAction::from(|_| Ok(Route::Home));
+                    let requester = Requester::default();
+                    let response = requester.make(request, on_ok).await;
 
-                    match response.status() {
-                        StatusCode::OK => {
-                            scope
-                                .callback(move |_| AccountMsg::DeleteAccountSuccessful)
-                                .emit(0);
-                        }
-                        _ => {
-                            let err = response.text().await.expect("could not get body text");
-                            scope
-                                .callback(move |_| AccountMsg::DeleteAccountError(err.clone()))
-                                .emit(0);
-                        }
-                    };
+                    scope.send_message(AccountMsg::ReceivedDeleteAccountResponse(response));
                 });
             }
-            AccountMsg::DeleteAccountError(err) => self.delete_account_err = Some(err),
-            AccountMsg::DeleteAccountSuccessful => {
-                self.app_context.borrow_mut().logout();
-                self.account = Some(Err(InternalResponseError::Unauthorized));
-            }
-            AccountMsg::AppContextUpdated(context) => {
-                if context.borrow_mut().username() == self.app_context.borrow_mut().username() {
-                    // self.app_context = context;
-                    return false;
+
+            AccountMsg::ReceivedDeleteAccountResponse(response) => {
+                if response.is_ok() {
+                    self.app_context.borrow_mut().logout();
                 }
+                self.delete_response = Some(response);
             }
+            AccountMsg::AppContextUpdated(_context) => {}
         }
         true
     }
@@ -187,7 +176,7 @@ impl Account {
                     <div>
                         <button onclick={onclick_delete_account}>{ "delete account" }</button>
                         {
-                            if let Some(delete_account_err) = &self.delete_account_err {
+                            if let Some(Err(delete_account_err)) = &self.delete_response {
                                 html!{<p>{ delete_account_err }</p>}
                             } else {
                                 html!{}
