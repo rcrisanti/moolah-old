@@ -47,7 +47,7 @@ pub async fn get_predictions(
     }
 }
 
-pub async fn post_prediction(
+pub async fn put_prediction(
     path: web::Path<String>,
     web::Json(prediction): web::Json<NewPrediction>,
     id: Identity,

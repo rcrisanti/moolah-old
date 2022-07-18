@@ -155,7 +155,7 @@ impl NewPrediction {
         wasm_bindgen_futures::spawn_local(async move {
             log::debug!("posting new prediction: {:?}", new_prediction);
 
-            let request = client.post(path).json(&new_prediction);
+            let request = client.put(path).json(&new_prediction);
             let on_ok = ResponseAction::new(Box::new(|response| {
                 Box::pin(async {
                     response

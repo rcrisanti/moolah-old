@@ -7,7 +7,7 @@ use shared::schema::users::dsl::{email, last_login, password, username, users};
 use crate::errors::MoolahBackendError;
 use crate::Pool;
 
-pub async fn post_login_request_password(
+pub async fn put_request_login_password(
     web::Json(user_form): web::Json<UserLoginRequestForm>,
     pool: web::Data<Pool>,
 ) -> Result<HttpResponse, MoolahBackendError> {
@@ -24,7 +24,7 @@ pub async fn post_login_request_password(
     }
 }
 
-pub async fn post_login(
+pub async fn patch_login(
     web::Json(user_form): web::Json<User>,
     id: Identity,
     pool: web::Data<Pool>,

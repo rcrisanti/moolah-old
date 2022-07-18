@@ -154,7 +154,7 @@ impl Component for Register {
 
                 let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let request = Client::new().post(path).json(&user_form);
+                    let request = Client::new().put(path).json(&user_form);
                     let on_ok = ResponseAction::from(|_| Ok(Route::Home));
                     let requester = Requester::default();
                     let response = requester.make(request, on_ok).await;

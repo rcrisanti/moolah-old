@@ -7,10 +7,10 @@ mod predictions;
 mod register;
 
 pub use account::{delete_account, get_account};
-pub use login::{post_login, post_login_request_password};
-pub use logout::post_logout;
-pub use predictions::{delete_prediction, get_predictions, post_prediction};
-pub use register::post_register;
+pub use login::{patch_login, put_request_login_password};
+pub use logout::put_logout;
+pub use predictions::{delete_prediction, get_predictions, put_prediction};
+pub use register::put_register;
 
 #[derive(PartialEq)]
 enum AuthenticationStatus {

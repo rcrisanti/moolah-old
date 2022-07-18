@@ -127,7 +127,7 @@ impl Component for Login {
                 let client = Arc::new(self.client.clone());
                 let password = self.password.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let response = client.post(path).json(&user_form).send().await.ok();
+                    let response = client.put(path).json(&user_form).send().await.ok();
 
                     let response = if let Some(response) = response {
                         match response.status() {
@@ -160,7 +160,7 @@ impl Component for Login {
                         }
                     } else {
                         Err(InternalResponseError::Other(
-                            "could not post login credentials".into(),
+                            "could not post login credentials:".into(),
                         ))
                     };
 
@@ -186,7 +186,7 @@ impl Component for Login {
 async fn login_user(client: Arc<Client>, user: User) -> ResponseResult<Route> {
     let path = fully_qualified_path(routes::LOGIN.into())
         .expect("could not build fully qualified path for second request");
-    let request = client.post(path).json(&user);
+    let request = client.patch(path).json(&user);
     let on_ok = ResponseAction::new(Box::new(|_| Box::pin(async move { Ok(Route::Home) })));
 
     let requester = Requester::default();

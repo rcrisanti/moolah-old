@@ -55,7 +55,7 @@ impl Component for Logout {
 
                 let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let request = Client::new().post(path);
+                    let request = Client::new().put(path);
                     let on_ok = ResponseAction::from(|_| Ok(()));
                     let requester = Requester::default();
                     let response = requester.make(request, on_ok).await;

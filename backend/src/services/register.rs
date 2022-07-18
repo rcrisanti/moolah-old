@@ -7,7 +7,7 @@ use shared::{
     schema,
 };
 
-pub async fn post_register(
+pub async fn put_register(
     web::Json(user_form): web::Json<UserRegisterForm>,
     id: Identity,
     pool: web::Data<Pool>,
