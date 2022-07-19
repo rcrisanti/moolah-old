@@ -1,10 +1,9 @@
 use actix_identity::Identity;
 
-pub mod account;
 pub mod login;
 pub mod logout;
 pub mod predictions;
-pub mod register;
+pub mod user;
 
 #[derive(PartialEq)]
 enum AuthenticationStatus {

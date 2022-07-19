@@ -173,7 +173,10 @@ impl Component for Register {
                     return true;
                 }
 
-                let path = fully_qualified_path(routes::REGISTER.into())
+                // let path = fully_qualified_path(routes::REGISTER.into())
+                //     .expect("could not build fully qualified path");
+
+                let path = fully_qualified_path(routes::USER)
                     .expect("could not build fully qualified path");
 
                 let scope = ctx.link().clone();

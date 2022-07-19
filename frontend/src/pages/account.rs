@@ -10,11 +10,10 @@ use yew_router::components::Redirect;
 use crate::app::Route;
 use crate::components::AppContext;
 use crate::components::{Header, Loading, Unauthorized};
-use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
+use crate::requests::{fully_qualified_path, Requester, ResponseAction};
 use crate::InternalResponseError;
 use crate::ResponseResult;
 
-const PATH_PATTERN: &str = r"\{username\}";
 const DATETIME_FORMAT: &str = "%a %h %d %Y %r %Z";
 
 pub enum AccountMsg {
@@ -93,27 +92,23 @@ impl Component for Account {
                 }
             }
             AccountMsg::DeleteAccountConfirmed => {
-                let path = fully_qualified_path(
-                    &replace_pattern(
-                        routes::ACCOUNT,
-                        PATH_PATTERN,
-                        &self
-                            .account
-                            .as_ref()
-                            .expect("should have account")
-                            .as_ref()
-                            .expect("should have account")
-                            .username
-                            .clone(),
-                    )
-                    .expect("could not replace pattern in route"),
-                )
-                .expect("could not create path");
+                let path = fully_qualified_path(routes::USER).expect("could not create path");
+
+                let query = [(
+                    "username",
+                    self.account
+                        .as_ref()
+                        .expect("should have account response")
+                        .as_ref()
+                        .expect("should have account")
+                        .username
+                        .clone(),
+                )];
 
                 let client = Arc::new(self.client.clone());
                 let scope = ctx.link().clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let request = client.delete(path);
+                    let request = client.delete(path).query(&query);
                     let on_ok = ResponseAction::from(|_| Ok(Route::Home));
                     let requester = Requester::default();
                     let response = requester.make(request, on_ok).await;
@@ -211,16 +206,13 @@ impl Account {
 
 impl Account {
     fn get_account(&self, ctx: &Context<Self>, username: &str) {
-        let path = fully_qualified_path(
-            &replace_pattern(routes::ACCOUNT, PATH_PATTERN, username)
-                .expect("could not replace pattern in route"),
-        )
-        .expect("could not create path");
+        let path = fully_qualified_path(routes::USER).expect("could not create path");
+        let query = [("username", username.to_owned())];
 
         let scope = ctx.link().clone();
         let client = Arc::new(Client::new());
         wasm_bindgen_futures::spawn_local(async move {
-            let request = client.get(path);
+            let request = client.get(path).query(&query);
             let on_ok = ResponseAction::new(Box::new(|response| {
                 Box::pin(async {
                     let account: UserAccount = response

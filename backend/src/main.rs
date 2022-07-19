@@ -11,7 +11,7 @@ mod errors;
 mod services;
 
 use errors::MoolahBackendError;
-use services::{account, login, logout, predictions, register};
+use services::{login, logout, predictions, user};
 
 type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -35,7 +35,7 @@ async fn main() -> std::io::Result<()> {
                     .same_site(SameSite::None),
             ))
             .app_data(web::Data::new(pool.clone()))
-            .route(routes::REGISTER, web::put().to(register::put_register))
+            // .route(routes::REGISTER, web::put().to(register::put_register))
             .route(routes::LOGOUT, web::put().to(logout::put_logout))
             .route(
                 routes::LOGIN_REQUEST_PASSWORD,
@@ -43,10 +43,16 @@ async fn main() -> std::io::Result<()> {
             )
             .route(routes::LOGIN, web::patch().to(login::patch_login))
             .service(
-                web::resource(routes::ACCOUNT)
-                    .route(web::get().to(account::get_account))
-                    .route(web::delete().to(account::delete_account)),
+                web::resource(routes::USER)
+                    .route(web::get().to(user::get_user_account))
+                    .route(web::put().to(user::put_user))
+                    .route(web::delete().to(user::delete_user)),
             )
+            // .service(
+            //     web::resource(routes::ACCOUNT)
+            //         .route(web::get().to(account::get_account))
+            //         .route(web::delete().to(account::delete_account)),
+            // )
             .service(
                 web::resource(routes::PREDICTIONS)
                     .route(web::get().to(predictions::get_predictions))
