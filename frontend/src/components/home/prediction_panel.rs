@@ -6,6 +6,8 @@ use shared::{
     path_patterns, routes,
 };
 use stylist::{css, YieldStyle};
+use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
@@ -15,18 +17,27 @@ use crate::{components::AppContext, ResponseResult};
 pub struct PredictionPanelProps {
     pub prediction: PredictionWithDeltas,
     pub ondelete: Callback<()>,
+    pub onupdate: Callback<()>,
 }
 
 pub enum PredictionPanelMsg {
     AppContextUpdated(AppContext),
     DeletePrediction,
-    ReceivedResponse(ResponseResult<()>),
+    UpdatePredictionNameRequested,
+    PredictionNameChanged(String),
+    PredictionNameChangeSubmitted,
+    PredictionNameChangeCanceled,
+    ReceivedDeleteResponse(ResponseResult<()>),
+    ReceivedUpdateResponse(ResponseResult<()>),
 }
 
 pub struct PredictionPanel {
     app_context: AppContext,
     client: Client,
-    response: Option<ResponseResult<()>>,
+    delete_response: Option<ResponseResult<()>>,
+    update_response: Option<ResponseResult<()>>,
+    open: bool,
+    updated_prediction_name: String,
 }
 
 impl Component for PredictionPanel {
@@ -42,23 +53,29 @@ impl Component for PredictionPanel {
         PredictionPanel {
             app_context,
             client: Client::new(),
-            response: None,
+            delete_response: None,
+            update_response: None,
+            open: false,
+            updated_prediction_name: String::new(),
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let onclick_trash = ctx
-            .link()
-            .callback(|_| PredictionPanelMsg::DeletePrediction);
-
         html! {
             <>
-                <h2>{ ctx.props().prediction.name() } <i class="fa fa-trash" onclick={onclick_trash}></i></h2>
+                {
+                    if self.open {
+                        self.view_open_prediction_name(ctx)
+                    } else {
+                        self.view_closed_prediction_name(ctx)
+                    }
+                }
+
 
                 <div class={ self.style() }>
                     <h3>{ "deltas" }</h3>
                     {
-                        if let Some(Err(err)) = &self.response {
+                        if let Some(Err(err)) = &self.delete_response {
                             html! {
                                 <p>{err}</p>
                             }
@@ -77,10 +94,39 @@ impl Component for PredictionPanel {
         match msg {
             PredictionPanelMsg::DeletePrediction => {
                 self.delete_prediction_if_logged_in(ctx);
-                ctx.props().ondelete.emit(());
+                log::trace!("delete prediction requested");
             }
             PredictionPanelMsg::AppContextUpdated(_) => todo!(),
-            PredictionPanelMsg::ReceivedResponse(response) => self.response = Some(response),
+            PredictionPanelMsg::ReceivedDeleteResponse(response) => {
+                if response.is_ok() {
+                    self.delete_response = Some(response);
+                    ctx.props().ondelete.emit(());
+                    log::trace!("delete prediction completed");
+                } else {
+                    self.delete_response = Some(response);
+                    log::error!("error deleting prediction");
+                }
+            }
+            PredictionPanelMsg::UpdatePredictionNameRequested => self.open = true,
+            PredictionPanelMsg::PredictionNameChanged(name) => self.updated_prediction_name = name,
+            PredictionPanelMsg::PredictionNameChangeSubmitted => {
+                self.update_prediction_if_logged_in(ctx);
+                log::trace!("update prediction requested");
+            }
+            PredictionPanelMsg::PredictionNameChangeCanceled => self.open = false,
+            PredictionPanelMsg::ReceivedUpdateResponse(response) => {
+                self.open = false;
+
+                if response.is_ok() {
+                    self.update_response = Some(response);
+                    ctx.props().onupdate.emit(());
+                    log::trace!("update prediction completed");
+                } else {
+                    self.update_response = Some(response);
+                    log::error!("error updating prediction");
+                    return false;
+                }
+            }
         }
         true
     }
@@ -144,26 +190,81 @@ impl PredictionPanel {
             </table>
         }
     }
+
+    fn view_open_prediction_name(&self, ctx: &Context<Self>) -> Html {
+        let onchange_predname = ctx.link().batch_callback(|ev: Event| {
+            let target = ev.target();
+            let input = target.and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+            input.map(|input| PredictionPanelMsg::PredictionNameChanged(input.value()))
+        });
+
+        let onsubmit = ctx.link().callback(|ev: FocusEvent| {
+            ev.prevent_default();
+            PredictionPanelMsg::PredictionNameChangeSubmitted
+        });
+
+        let onclick_cancel = ctx
+            .link()
+            .callback(|_| PredictionPanelMsg::PredictionNameChangeCanceled);
+
+        html! {
+            <div>
+                {
+                    if let Some(Err(err)) = &self.delete_response {
+                        html!{
+                            <div>
+                                {format!("error updating prediction name: {}", err)}
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+                <form {onsubmit}>
+                    <input type="text" placeholder={ctx.props().prediction.name().to_owned()} onchange={onchange_predname}/>
+                    <input type="submit" value="update"/>
+                    <input type="button" value="cancel" onclick={onclick_cancel}/>
+                </form>
+            </div>
+        }
+    }
+
+    fn view_closed_prediction_name(&self, ctx: &Context<Self>) -> Html {
+        let onclick_delete = ctx
+            .link()
+            .callback(|_| PredictionPanelMsg::DeletePrediction);
+
+        let onclick_edit = ctx
+            .link()
+            .callback(|_| PredictionPanelMsg::UpdatePredictionNameRequested);
+
+        html! {
+            <h2>
+                { ctx.props().prediction.name() }
+                <i class="fa fa-pencil" aria-hidden="true" onclick={onclick_edit}></i>
+                <i class="fa fa-trash" aria-hidden="true" onclick={onclick_delete}></i>
+            </h2>
+        }
+    }
 }
 
 impl PredictionPanel {
     fn delete_prediction_if_logged_in(&self, ctx: &Context<Self>) {
         if let Some(username) = self.app_context.borrow_mut().username() {
             self.delete_prediction(ctx, &username);
-        } else {
         }
     }
 
-    fn delete_prediction(&self, ctx: &Context<Self>, username: &str) {
-        let path = fully_qualified_path(
-            &replace_pattern(
-                routes::PREDICTIONS,
-                path_patterns::PREDICTIONS,
-                username.into(),
-            )
-            .expect("could not replace pattern in route"),
+    fn path(&self, username: &str) -> String {
+        fully_qualified_path(
+            &replace_pattern(routes::PREDICTIONS, path_patterns::PREDICTIONS, username)
+                .expect("could not replace pattern in route"),
         )
-        .expect("could not create path");
+        .expect("could not create path")
+    }
+
+    fn delete_prediction(&self, ctx: &Context<Self>, username: &str) {
+        let path = self.path(username);
 
         let prediction: Prediction = ctx.props().prediction.clone().into();
 
@@ -176,7 +277,32 @@ impl PredictionPanel {
             let requester = Requester::default();
             let response = requester.make(request, on_ok).await;
 
-            scope.send_message(PredictionPanelMsg::ReceivedResponse(response.clone()));
+            scope.send_message(PredictionPanelMsg::ReceivedDeleteResponse(response.clone()));
+        });
+    }
+
+    fn update_prediction_if_logged_in(&self, ctx: &Context<Self>) {
+        if let Some(username) = self.app_context.borrow_mut().username() {
+            self.update_prediction(ctx, &username);
+        }
+    }
+
+    fn update_prediction(&self, ctx: &Context<Self>, username: &str) {
+        let path = self.path(username);
+
+        let mut prediction: Prediction = ctx.props().prediction.clone().into();
+        prediction.update_name(self.updated_prediction_name.clone());
+
+        let client = Arc::new(self.client.clone());
+        let scope = ctx.link().clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            log::debug!("updating prediction: {:?}", prediction);
+            let request = client.patch(path).json(&prediction);
+            let on_ok = ResponseAction::from(|_| Ok(()));
+            let requester = Requester::default();
+            let response = requester.make(request, on_ok).await;
+
+            scope.send_message(PredictionPanelMsg::ReceivedUpdateResponse(response.clone()));
         });
     }
 }

@@ -97,7 +97,11 @@ impl Home {
 
                 {
                     predictions.into_iter().map(|pred| html!{
-                        <PredictionPanel prediction={pred.clone()} ondelete={on_data_update.clone()}/>
+                        <PredictionPanel
+                            prediction={pred.clone()}
+                            ondelete={on_data_update.clone()}
+                            onupdate={on_data_update.clone()}
+                        />
                     }).collect::<Html>()
                 }
             </div>

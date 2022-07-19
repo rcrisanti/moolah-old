@@ -22,6 +22,10 @@ impl Prediction {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn update_name(&mut self, name: String) {
+        self.name = name
+    }
 }
 
 impl From<PredictionWithDeltas> for Prediction {

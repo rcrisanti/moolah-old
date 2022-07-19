@@ -1,16 +1,10 @@
 use actix_identity::Identity;
 
-mod account;
-mod login;
-mod logout;
-mod predictions;
-mod register;
-
-pub use account::{delete_account, get_account};
-pub use login::{patch_login, put_request_login_password};
-pub use logout::put_logout;
-pub use predictions::{delete_prediction, get_predictions, put_prediction};
-pub use register::put_register;
+pub mod account;
+pub mod login;
+pub mod logout;
+pub mod predictions;
+pub mod register;
 
 #[derive(PartialEq)]
 enum AuthenticationStatus {

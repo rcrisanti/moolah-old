@@ -99,3 +99,27 @@ pub async fn delete_prediction(
 
     Ok(HttpResponse::Ok().finish())
 }
+
+pub async fn patch_prediction(
+    path: web::Path<String>,
+    web::Json(prediction): web::Json<Prediction>,
+    id: Identity,
+    pool: web::Data<Pool>,
+) -> Result<HttpResponse, MoolahBackendError> {
+    let username = path.into_inner();
+
+    if !is_authenticated(&id, &username) || username != prediction.username() {
+        log::debug!("user is not authorized to delete this prediction");
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
+    let connection = pool.get()?;
+
+    let n_updated_rows = diesel::update(&prediction)
+        .set(dsl::name.eq(prediction.name()))
+        .execute(&connection)?;
+
+    log::info!("updated {} prediction", n_updated_rows);
+
+    Ok(HttpResponse::Ok().finish())
+}
