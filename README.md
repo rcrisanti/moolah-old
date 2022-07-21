@@ -9,6 +9,6 @@ a personal finance projection WASM web app built in Rust
 | logout      | :white_check_mark: | :heavy_minus_sign: | :heavy_minus_sign: | :heavy_minus_sign: |
 | user        | :white_check_mark: | :white_check_mark: | :x:                | :white_check_mark: |
 | predictions | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| deltas      | :x:                | :x:                | :x:                | :x:                 |
+| deltas      | :white_check_mark: | :x:                | :x:                | :x:                |
 
 
