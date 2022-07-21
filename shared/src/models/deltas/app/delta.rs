@@ -20,7 +20,7 @@ pub struct Delta {
     positive_uncertainty: f32,
     negative_uncertainty: f32,
     repetition: Repetition,
-    dates: Vec<NaiveDate>,
+    // dates: Vec<NaiveDate>,
 }
 
 impl Delta {
@@ -41,7 +41,7 @@ impl Delta {
             positive_uncertainty,
             negative_uncertainty,
             repetition,
-            dates: repetition.dates(),
+            // dates: repetition.dates(),
         }
     }
 
@@ -73,9 +73,9 @@ impl Delta {
         self.repetition
     }
 
-    pub fn dates(&self) -> &Vec<NaiveDate> {
-        &self.dates
-    }
+    // pub fn dates(&self) -> &Vec<NaiveDate> {
+    //     &self.dates
+    // }
 }
 
 impl Hash for Delta {
@@ -87,11 +87,36 @@ impl Hash for Delta {
         // self.positive_uncertainty.hash(state);
         // self.negative_uncertainty.hash(state);
         self.repetition.hash(state);
-        self.dates.hash(state);
+        // self.dates.hash(state);
     }
 }
 
 impl Eq for Delta {}
+
+// impl TryFrom<DbDelta> for Delta {
+//     type Error = MoolahSharedError;
+
+//     fn try_from(db_delta: DbDelta) -> Result<Self, Self::Error> {
+//         let repetition = (
+//             db_delta.repetition,
+//             db_delta.start_on,
+//             db_delta.end_on,
+//             db_delta.repeat_day,
+//             db_delta.repeat_weekday,
+//         )
+//             .try_into()?;
+
+//         Ok(Delta::new(
+//             db_delta.id,
+//             db_delta.prediction_id,
+//             db_delta.name,
+//             db_delta.value,
+//             db_delta.positive_uncertainty,
+//             db_delta.negative_uncertainty,
+//             repetition,
+//         ))
+//     }
+// }
 
 impl TryFrom<DbDelta> for Delta {
     type Error = MoolahSharedError;
@@ -161,3 +186,70 @@ impl TryFrom<DbDelta> for Delta {
         ))
     }
 }
+
+#[derive(Serialize)]
+pub struct NewDelta {
+    prediction_id: i32,
+    name: String,
+    value: f32,
+    positive_uncertainty: f32,
+    negative_uncertainty: f32,
+    repetition: Repetition,
+}
+
+impl NewDelta {
+    pub fn new(
+        prediction_id: i32,
+        name: String,
+        value: f32,
+        positive_uncertainty: f32,
+        negative_uncertainty: f32,
+        repetition: Repetition,
+    ) -> Self {
+        NewDelta {
+            prediction_id,
+            name,
+            value,
+            positive_uncertainty,
+            negative_uncertainty,
+            repetition,
+        }
+    }
+
+    pub fn prediction_id(&self) -> i32 {
+        self.prediction_id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn value(&self) -> f32 {
+        self.value
+    }
+
+    pub fn positive_uncertainty(&self) -> f32 {
+        self.positive_uncertainty
+    }
+
+    pub fn negative_uncertainty(&self) -> f32 {
+        self.negative_uncertainty
+    }
+
+    pub fn repetition(&self) -> &Repetition {
+        &self.repetition
+    }
+}
+
+// impl From<Delta> for NewDelta {
+//     fn from(delta: Delta) -> Self {
+//         NewDelta {
+//             prediction_id: delta.prediction_id,
+//             name: delta.name,
+//             value: delta.value,
+//             positive_uncertainty: delta.positive_uncertainty,
+//             negative_uncertainty: delta.negative_uncertainty,
+//             repetition: delta.repetition,
+//         }
+//     }
+// }

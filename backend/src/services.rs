@@ -1,5 +1,6 @@
 use actix_identity::Identity;
 
+pub mod deltas;
 pub mod login;
 pub mod logout;
 pub mod predictions;

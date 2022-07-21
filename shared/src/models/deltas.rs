@@ -1,5 +1,5 @@
 pub mod app;
 pub mod db;
 
-pub use app::{Delta, Repetition};
-pub use db::DbDelta;
+pub use app::{Delta, NewDelta, Repetition};
+pub use db::{DbDelta, NewDbDelta};

@@ -8,8 +8,6 @@ pub enum MoolahSharedError {
     #[error("error hashing password")]
     PasswordHashError(#[from] argon2::password_hash::Error),
 
-    // #[error("Attempted to convert between incompatible Delta types ({from} -> {to})")]
-    // DeltaConversionError { from: String, to: String },
     #[error("unable to convert between Delta and DbDelta: ({0})")]
     DeltaConversionError(&'static str),
 
@@ -20,5 +18,5 @@ pub enum MoolahSharedError {
     DeltaDeserializationError(&'static str),
 
     #[error("delta repetition error: {0}")]
-    RepetitionError(&'static str),
+    RepetitionError(String),
 }

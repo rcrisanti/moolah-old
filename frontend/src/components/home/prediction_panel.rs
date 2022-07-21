@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use reqwest::Client;
 use shared::{
-    models::{predictions::PredictionWithDeltas, Prediction},
+    models::{
+        deltas::app::repetition::MonthDay, predictions::PredictionWithDeltas, Prediction,
+        Repetition,
+    },
     path_patterns, routes,
 };
 use stylist::{css, YieldStyle};
@@ -11,7 +14,12 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 use crate::requests::{fully_qualified_path, replace_pattern, Requester, ResponseAction};
-use crate::{components::AppContext, ResponseResult};
+use crate::{
+    components::{AppContext, NewDelta},
+    ResponseResult,
+};
+
+const DATE_FMT: &str = "%x";
 
 #[derive(Properties, PartialEq)]
 pub struct PredictionPanelProps {
@@ -61,6 +69,10 @@ impl Component for PredictionPanel {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let oncreate_delta = ctx
+            .link()
+            .callback(|_| PredictionPanelMsg::ReceivedUpdateResponse(Ok(())));
+
         html! {
             <>
                 {
@@ -85,6 +97,8 @@ impl Component for PredictionPanel {
                     }
 
                     { self.view_delta_table(ctx) }
+
+                    <NewDelta prediction_id={ctx.props().prediction.id()} oncreate={oncreate_delta}/>
                 </div>
             </>
         }
@@ -139,8 +153,8 @@ impl PredictionPanel {
                 <tr>
                     <th>{ "name" }</th>
                     <th>{ "value" }</th>
-                    <th>{ "dates" }</th>
                     <th>{ "uncertainty" }</th>
+                    <th>{ "occurs" }</th>
                 </tr>
                 {
                     ctx.props().prediction.deltas().into_iter().map(|delta| {
@@ -154,20 +168,20 @@ impl PredictionPanel {
                             delta.value().abs()
                         );
 
-                        let mut dates = delta.dates().clone();
-                        dates.sort();
+                        // let mut dates = delta.dates().clone();
+                        // dates.sort();
 
-                        let dates_fmt = {
-                            if dates.len() == 0 {
-                                 "N/A".to_string()
-                            } else if dates.len() == 1 {
-                                dates.first().expect("should have 1 date").format("%x").to_string()
-                            } else if dates.len() <= 3 {
-                                dates.into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", ")
-                            } else {
-                                format!("{}, ...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
-                            }
-                        };
+                        // let dates_fmt = {
+                        //     if dates.len() == 0 {
+                        //          "N/A".to_string()
+                        //     } else if dates.len() == 1 {
+                        //         dates.first().expect("should have 1 date").format("%x").to_string()
+                        //     } else if dates.len() <= 3 {
+                        //         dates.into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", ")
+                        //     } else {
+                        //         format!("{}, ...", dates[..3].into_iter().map(|date| date.format("%x").to_string()).collect::<Vec<_>>().join(", "))
+                        //     }
+                        // };
 
                         let unc_fmt = {
                             if delta.positive_uncertainty() == delta.negative_uncertainty() {
@@ -177,12 +191,44 @@ impl PredictionPanel {
                             }
                         };
 
+                        let dates_fmt = match delta.repetition() {
+                            Repetition::Monthly { from, to, repeat_on_day } => {
+                                let day = format!(
+                                    "{}{}",
+                                    repeat_on_day,
+                                    if repeat_on_day > MonthDay::new(28).unwrap() {
+                                        " (or final)"
+                                    } else {
+                                        ""
+                                    }
+                                );
+                                format!(
+                                    "the {} day of each month from {} to {}",
+                                    day,
+                                    from.format(DATE_FMT),
+                                    to.format(DATE_FMT)
+                                )
+                            },
+                            Repetition::Weekly { from, to, repeat_on_weekday } => {
+                                format!(
+                                    "every {} from {} to {}",
+                                    repeat_on_weekday.to_string(),
+                                    from.format(DATE_FMT),
+                                    to.format(DATE_FMT)
+                                )
+                            }
+                            Repetition::Daily { from, to } => {
+                                format!("every day from {} to {}", from.format(DATE_FMT), to.format(DATE_FMT))
+                            }
+                            Repetition::Once { on } => format!("one time on {}", on.format(DATE_FMT)),
+                        };
+
                         html! {
                             <tr key={ delta.id() }>
                                 <td>{ delta.name() }</td>
                                 <td>{ value }</td>
-                                <td>{ dates_fmt }</td>
                                 <td>{ unc_fmt }</td>
+                                <td>{ dates_fmt }</td>
                             </tr>
                         }
                     }).collect::<Html>()

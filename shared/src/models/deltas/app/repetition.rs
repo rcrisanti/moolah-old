@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::fmt::Display;
+
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +57,7 @@ fn date_ymd_clipped(year: i32, month: u32, day: MonthDay) -> NaiveDate {
 }
 
 impl Repetition {
-    pub(crate) fn dates(&self) -> Vec<NaiveDate> {
+    pub fn dates(&self) -> Vec<NaiveDate> {
         match self {
             Repetition::Monthly {
                 from: start,
@@ -135,16 +137,41 @@ impl MonthDay {
     pub fn new(rep: i16) -> Result<Self, MoolahSharedError> {
         if rep > 31 {
             Err(MoolahSharedError::RepetitionError(
-                "month day greater than 31",
+                "month day greater than 31".into(),
             ))
         } else if rep < 1 {
-            Err(MoolahSharedError::RepetitionError("month day less than 1"))
+            Err(MoolahSharedError::RepetitionError(
+                "month day less than 1".into(),
+            ))
         } else {
             Ok(MonthDay(
                 rep.try_into()
                     .expect("unreachable - already checked MonthDay 1-31"),
             ))
         }
+    }
+}
+
+impl Display for MonthDay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            self.0,
+            match (self.0 / 10, self.0 % 10) {
+                (1, _) => "th",
+                (_, 1) => "st",
+                (_, 2) => "nd",
+                (_, 3) => "rd",
+                _ => "th",
+            }
+        )
+    }
+}
+
+impl PartialOrd for MonthDay {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
     }
 }
 
@@ -157,6 +184,12 @@ impl TryFrom<i16> for MonthDay {
 }
 
 impl Into<i16> for MonthDay {
+    fn into(self) -> i16 {
+        self.0.into()
+    }
+}
+
+impl Into<i16> for &MonthDay {
     fn into(self) -> i16 {
         self.0.into()
     }

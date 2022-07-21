@@ -1,5 +1,8 @@
+use std::io::Write;
+
 use diesel::{
     backend::Backend,
+    serialize::Output,
     sql_types::SmallInt,
     types::{FromSql, ToSql},
 };
@@ -10,7 +13,7 @@ use crate::MoolahSharedError;
 
 #[repr(i16)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AsExpression, FromSqlRow)]
-#[diesel(sql_type = SmallInt)]
+#[sql_type = "SmallInt"]
 pub enum DbDateRepetition {
     Monthly = 1,
     Weekly = 2,
@@ -28,7 +31,23 @@ impl TryFrom<i16> for DbDateRepetition {
             3 => Ok(DbDateRepetition::Daily),
             4 => Ok(DbDateRepetition::Once),
             _ => Err(MoolahSharedError::RepetitionError(
-                "unrecognized repetition variant",
+                "unrecognized repetition variant".into(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<String> for DbDateRepetition {
+    type Error = MoolahSharedError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.to_ascii_lowercase().as_str() {
+            "monthly" => Ok(Self::Monthly),
+            "weekly" => Ok(Self::Weekly),
+            "daily" => Ok(Self::Daily),
+            "once" => Ok(Self::Once),
+            _ => Err(MoolahSharedError::RepetitionError(
+                "unrecognized repetition variant".into(),
             )),
         }
     }
@@ -53,15 +72,18 @@ impl From<Repetition> for DbDateRepetition {
     }
 }
 
+impl From<&Repetition> for DbDateRepetition {
+    fn from(rep: &Repetition) -> Self {
+        (*rep).into()
+    }
+}
+
 impl<DB> ToSql<SmallInt, DB> for DbDateRepetition
 where
     DB: Backend,
     i16: ToSql<SmallInt, DB>,
 {
-    fn to_sql<W: std::io::Write>(
-        &self,
-        out: &mut diesel::serialize::Output<W, DB>,
-    ) -> diesel::serialize::Result {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, DB>) -> diesel::serialize::Result {
         (*self as i16).to_sql(out)
     }
 }
