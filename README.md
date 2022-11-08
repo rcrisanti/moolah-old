@@ -1,3 +1,5 @@
+***This project is outdated. The new implementation is in `rcrisanti/moolah`.***
+
 # moolah
 a personal finance projection WASM web app built in Rust
 
